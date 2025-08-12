@@ -57,13 +57,13 @@ const progressValidator = {
     // }),
 
     correctAnswers: Joi.number().min(0).when("gameName", {
-      is: Joi.string().valid(...fluencyGames),
+      is: Joi.string().valid(...fluencyGames,  "Pollution Police"),
       then: Joi.forbidden(),
       otherwise: Joi.required()
     }),
 
     totalQuestions: Joi.number().min(1).when("gameName", {
-      is: Joi.string().valid(...fluencyGames),
+      is: Joi.string().valid(...fluencyGames, "Pollution Police"),
       then: Joi.forbidden(),
       otherwise: Joi.required()
     }),
@@ -81,6 +81,11 @@ const progressValidator = {
     }),
     intonation: Joi.string().valid(...allowedIntonation).when("gameName", {
       is: Joi.string().valid(...fluencyGames),
+      then: Joi.required(),
+      otherwise: Joi.forbidden()
+    }),
+    paragraph: Joi.string().valid().when("gameName", {
+      is: Joi.string().valid("Pollution Police"),
       then: Joi.required(),
       otherwise: Joi.forbidden()
     }),

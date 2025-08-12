@@ -80,7 +80,28 @@ const gameProgressService = {
           speed,
           intonation,
           attempts: 1,
-          
+        });
+      }
+    } else if (gameName === "Pollution Police") {
+      const { paragraph } = data;
+      xpEarned = 20;
+      score = 100;
+      if (progress) {
+        progress.isCompleted = true;
+        progress.score = score;
+        progress.xpEarned = xpEarned;
+        progress.paragraph = paragraph;
+        progress.attempts += 1;
+      } else {
+        progress = gameProgressRepo.create({
+          child,
+          lesson,
+          gameName,
+          isCompleted: true,
+          score,
+          xpEarned,
+          paragraph,
+          attempts: 1,
         });
       }
     } else {

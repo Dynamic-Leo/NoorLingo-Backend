@@ -45,6 +45,9 @@ export default class GameProgress {
   @Column({ type: "varchar", length: 50, nullable: true })
   intonation: string;
 
+  @Column({ type: "varchar", nullable: true })
+  paragraph: string;
+
   @CreateDateColumn()
   createdDate: Date;
 
