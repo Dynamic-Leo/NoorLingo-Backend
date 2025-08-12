@@ -38,6 +38,63 @@ const usersController = {
       null
     );
   }),
+  getAll :catchAsync(async(req:Request,res:Response)=>{
+
+    const all = await usersServices.getAll();
+    if(all){
+      return await sendResponse(
+        res,
+      responseCodes.OK,
+      "User fetched",
+      all,
+      null
+      )
+    }
+    else{
+       return await sendResponse(
+      res,
+      responseCodes.OK,
+      "User not fetched",
+      null,
+      null
+    );
+    }
+
+  }),
+
+  getSingleWithChildren: catchAsync(async (req: Request, res: Response) => {
+  const userId = parseInt(req.params.id);
+  if (isNaN(userId)) {
+    return await sendResponse(
+      res,
+      responseCodes.BAD,
+      "Invalid user ID",
+      null,
+      null
+    );
+  }
+
+  const user = await usersServices.getSingleWithChildren(userId);
+
+  if (user) {
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "User with children fetched successfully",
+      user,
+      null
+    );
+  } else {
+    return await sendResponse(
+      res,
+      responseCodes.NOT_FOUND,
+      "User not found",
+      null,
+      null
+    );
+  }
+}),
+
 };
 
 export default usersController;

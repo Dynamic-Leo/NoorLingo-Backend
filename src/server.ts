@@ -1,11 +1,11 @@
 import http from "http";
 import app from "./app";
-import socketConnection from "./socket";
+// import socketConnection from "./socket";
 
-const PORT = process.env.PORT;
+const PORT = Number(process.env.PORT);
 const server = http.createServer(app);
-socketConnection(server);
+// socketConnection(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });

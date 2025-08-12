@@ -1,4 +1,4 @@
-const socketEmitter = {};
+// const socketEmitter = {};
 
-Object.freeze(socketEmitter);
-export default socketEmitter;
+// Object.freeze(socketEmitter);
+// export default socketEmitter;

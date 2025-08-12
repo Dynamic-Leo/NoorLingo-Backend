@@ -1,4 +1,6 @@
 import Joi from "joi";
+
+
 const usersValidator = {
   create: Joi.object({
     name: Joi.string().required().error(new Error("Name must be a string")),

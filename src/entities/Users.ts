@@ -5,6 +5,8 @@ import {
   BeforeInsert,
   BeforeUpdate,
 } from "typeorm";
+import Children from "./Children";
+import { OneToMany } from "typeorm";
 
 @Entity()
 export default class Users {
@@ -26,6 +28,10 @@ export default class Users {
   @Column({ nullable: false })
   role: string;
 
+
+  @Column({ type: "boolean", default: true })
+  isActive: boolean;
+  
   @Column({ default: () => "CURRENT_TIMESTAMP" })
   createdDate: Date;
 
@@ -41,4 +47,8 @@ export default class Users {
   updateUpdatedDate() {
     this.updatedDate = new Date();
   }
+  
+  // Inside class Users:
+  @OneToMany(() => Children, (child : Children) => child.user)
+  children: Children[];
 }
