@@ -82,7 +82,7 @@ const gameProgressService = {
           attempts: 1,
         });
       }
-    } else if (gameName === "Pollution Police") {
+    } else if (gameName === "Pollution Police" || gameName === "Masdar City Summary") {
       const { paragraph } = data;
       xpEarned = 20;
       score = 100;

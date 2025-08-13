@@ -14,6 +14,7 @@ const allowedGameNames = [
   "Passage Intro",
   "Clean or Hurt",
   "Masdar City",
+  "Masdar City Summary",
   "Tricky Words",
   "Read to Rescue",
   "Pollution Police"
@@ -57,13 +58,13 @@ const progressValidator = {
     // }),
 
     correctAnswers: Joi.number().min(0).when("gameName", {
-      is: Joi.string().valid(...fluencyGames,  "Pollution Police"),
+      is: Joi.string().valid(...fluencyGames,  "Pollution Police", "Masdar City Summary"),
       then: Joi.forbidden(),
       otherwise: Joi.required()
     }),
 
     totalQuestions: Joi.number().min(1).when("gameName", {
-      is: Joi.string().valid(...fluencyGames, "Pollution Police"),
+      is: Joi.string().valid(...fluencyGames, "Pollution Police", "Masdar City Summary"),
       then: Joi.forbidden(),
       otherwise: Joi.required()
     }),
@@ -85,7 +86,7 @@ const progressValidator = {
       otherwise: Joi.forbidden()
     }),
     paragraph: Joi.string().valid().when("gameName", {
-      is: Joi.string().valid("Pollution Police"),
+      is: Joi.string().valid("Pollution Police", "Masdar City Summary"),
       then: Joi.required(),
       otherwise: Joi.forbidden()
     }),
