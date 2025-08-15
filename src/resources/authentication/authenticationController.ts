@@ -25,7 +25,7 @@ const authenticationController = {
       return await sendResponse(
         res,
         responseCodes.NOT_AUTHORIZED,
-        "Authentication failed",
+        "Invalid email or password",
         null,
         null
       );
@@ -38,21 +38,26 @@ const authenticationController = {
       return await sendResponse(
         res,
         responseCodes.NOT_AUTHORIZED,
-        "Authentication failed",
+        "Invalid email or password",
         null,
         null
       );
     }
 
     const accessToken = await jwtServices.create({ userId: user.id });
-    const userData = JSON.parse(JSON.stringify(user));
-    delete userData.password;
+
+        // Remove password from response
+    const userData = { ...user, accessToken };
+    delete (userData as any).password;
+
+    // const userData = JSON.parse(JSON.stringify(user));
+    // delete userData.password;
     userData.accessToken = accessToken;
     return await sendResponse(
       res,
       responseCodes.OK,
       "Logged in",
-      userData,
+      {id: user.id, name: user.name, accessToken},
       null
     );
   }),

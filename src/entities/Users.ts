@@ -16,8 +16,8 @@ export default class Users {
   @Column()
   name: string;
 
-  @Column({ unique: true, nullable: false })
-  phone: string;
+  // @Column({ unique: true, nullable: false })
+  // phone: string;
 
   @Column({ unique: true, nullable: false })
   email: string;
