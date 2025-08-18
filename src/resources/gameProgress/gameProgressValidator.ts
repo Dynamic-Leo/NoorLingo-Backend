@@ -17,12 +17,14 @@ const allowedGameNames = [
   "Masdar City Summary",
   "Tricky Words",
   "Read to Rescue",
-  "Pollution Police"
+  "Pollution Police",
+  "Tap the Word",
 ];
 
 const allowedLessons = [
   "Amina's Choice",
-  "Eco Heroes of UAE"
+  "Eco Heroes of UAE",
+  "The Fat Cat and the Rat"
 ];
 
 const allowedPronunciation = ["Poor", "Average", "Good", "Excellent"];
