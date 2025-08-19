@@ -2,7 +2,6 @@ import "reflect-metadata";
 require("dotenv").config();
 import { DataSource } from "typeorm";
 import Users from "../entities/Users";
-import UserBankDetails from "../entities/BankDetails";
 import Children from "../entities/Children";
 import GameProgress from "../entities/GameProgress";
 
@@ -15,7 +14,6 @@ const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   entities: [
     Users,
-    UserBankDetails,
     Children,
     GameProgress
   ],
