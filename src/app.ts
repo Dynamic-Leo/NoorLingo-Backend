@@ -7,7 +7,6 @@ import globalErrorHandler from "./middleware/errorHandler.middleware";
 import "./db";
 import autehnticationMiddleware from "./middleware/authenticationMiddleware";
 import usersRouter from "./resources/users/usersRouter";
-import userbankRouter from './resources/userBankdetails/userBankDetailsRouter'
 import childrenRouter from "./resources/children/childrenRouter";
 import gameProgressRouter from "./resources/gameProgress/gameProgressRouter";
 import authenticationRouter from "./resources/authentication/authenticationRouter";
@@ -29,7 +28,6 @@ app.use(autehnticationMiddleware);
 
 
 app.use("/api/v1/users", usersRouter);
-app.use("/api/v1/userBankDetails",userbankRouter );
 app.use("/api/v1/children",childrenRouter)
 app.use("/api/v1/progress", gameProgressRouter);
 app.use(globalErrorHandler);
