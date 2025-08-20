@@ -1,0 +1,34 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const cors_1 = __importDefault(require("cors"));
+const morgan_1 = __importDefault(require("morgan"));
+const errorHandler_middleware_1 = __importDefault(require("./middleware/errorHandler.middleware"));
+require("./db");
+const authenticationMiddleware_1 = __importDefault(require("./middleware/authenticationMiddleware"));
+const usersRouter_1 = __importDefault(require("./resources/users/usersRouter"));
+const childrenRouter_1 = __importDefault(require("./resources/children/childrenRouter"));
+const gameProgressRouter_1 = __importDefault(require("./resources/gameProgress/gameProgressRouter"));
+const authenticationRouter_1 = __importDefault(require("./resources/authentication/authenticationRouter"));
+dotenv_1.default.config();
+const app = (0, express_1.default)();
+app.use((0, morgan_1.default)("dev"));
+app.use((0, cors_1.default)());
+app.options("*", (0, cors_1.default)());
+app.use(express_1.default.json());
+if (process.env.NODE_ENV === "production") {
+    console.log = () => { };
+    console.error = () => { };
+    console.warn = () => { };
+}
+app.use("/api/v1/auth", authenticationRouter_1.default);
+app.use(authenticationMiddleware_1.default);
+app.use("/api/v1/users", usersRouter_1.default);
+app.use("/api/v1/children", childrenRouter_1.default);
+app.use("/api/v1/progress", gameProgressRouter_1.default);
+app.use(errorHandler_middleware_1.default);
+exports.default = app;
