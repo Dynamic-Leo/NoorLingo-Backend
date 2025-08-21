@@ -19,6 +19,7 @@ const allowedGameNames = [
   "Read to Rescue",
   "Pollution Police",
   "Tap the Word",
+  "Dress On Cat"
 ];
 
 const allowedLessons = [
