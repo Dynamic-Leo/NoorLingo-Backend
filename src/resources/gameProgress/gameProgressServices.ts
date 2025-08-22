@@ -2,9 +2,11 @@ import AppDataSource from "../../db";
 import GameProgress from "../../entities/GameProgress";
 import Children from "../../entities/Children";
 import { fluencyGames } from "./gameProgressValidator";
+import { lessonGameMap, allowedLessons } from "../../utils/lessonGameMap";
 
 const gameProgressRepo = AppDataSource.getRepository(GameProgress);
 const childrenRepo = AppDataSource.getRepository(Children);
+
 type ScoreMapKey =
   | "Poor"
   | "Average"
@@ -16,22 +18,36 @@ type ScoreMapKey =
   | "Fair"
   | "Varied"
   | "Expressive";
+
 const gameProgressService = {
   createOrUpdate: async (data: any) => {
     const { childId, lesson, gameName } = data;
 
+    // 🔒 Validate lesson + gameName pairing
+    if (!allowedLessons.includes(lesson)) {
+      throw new Error(`Invalid lesson: ${lesson}`);
+    }
+    if (!lessonGameMap[lesson].includes(gameName)) {
+      throw new Error(
+        `For lesson "${lesson}", gameName must be one of: ${lessonGameMap[lesson].join(", ")}`
+      );
+    }
+
+    // Check child exists
     const child = await childrenRepo.findOne({ where: { id: childId } });
     if (!child) throw new Error("Child not found");
 
     let xpEarned = 0;
     let score = 0;
 
+    // Check if progress already exists
     let progress = await gameProgressRepo.findOne({
       where: { child: { id: childId }, lesson, gameName },
     });
 
     const isFirstTimeCompletion = !progress;
 
+    // Case 1: Fluency-based games
     if (fluencyGames.includes(gameName)) {
       const { pronunciation, speed, intonation, completed } = data;
 
@@ -82,10 +98,14 @@ const gameProgressService = {
           attempts: 1,
         });
       }
-    } else if (gameName === "Pollution Police" || gameName === "Masdar City Summary") {
+    }
+
+    // Case 2: Paragraph-based games
+    else if (gameName === "Pollution Police" || gameName === "Masdar City Summary") {
       const { paragraph } = data;
       xpEarned = 20;
       score = 100;
+
       if (progress) {
         progress.isCompleted = true;
         progress.score = score;
@@ -104,7 +124,10 @@ const gameProgressService = {
           attempts: 1,
         });
       }
-    } else {
+    }
+
+    // Case 3: Standard quiz-type games
+    else {
       const { completed, correctAnswers, totalQuestions } = data;
       score = Math.round((correctAnswers / totalQuestions) * 100);
 
@@ -131,6 +154,7 @@ const gameProgressService = {
       }
     }
 
+    // Update child stats
     child.totalXP += xpEarned;
     if (isFirstTimeCompletion) child.rewards += 1;
 
