@@ -10,6 +10,8 @@ import usersRouter from "./resources/users/usersRouter";
 import childrenRouter from "./resources/children/childrenRouter";
 import gameProgressRouter from "./resources/gameProgress/gameProgressRouter";
 import authenticationRouter from "./resources/authentication/authenticationRouter";
+import avatarRouter from "./resources/avatar/avatarRouter";
+import path from "path";
 
 dotenv.config();
 const app = express();
@@ -17,7 +19,7 @@ app.use(morgan("dev"));
 app.use(cors());
 app.options("*", cors());
 app.use(express.json());
-
+const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 if (process.env.NODE_ENV === "production") {
   console.log = () => {};
   console.error = () => {};
@@ -31,6 +33,10 @@ app.use(autehnticationMiddleware);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/children",childrenRouter)
 app.use("/api/v1/progress", gameProgressRouter);
+app.use("/api/v1/avatars", avatarRouter);
+
+// app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+app.use("/public", express.static(PUBLIC_DIR));
 app.use(globalErrorHandler);
 
 export default app;

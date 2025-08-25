@@ -30,6 +30,7 @@ const childrenServices = {
         rewards: true,
         totalXP: true,
         badges: true,
+        avatarId: true,
         lessonsCompleted: true,
         remainingLessons: true,
         differentLessons: true,
@@ -42,7 +43,9 @@ const childrenServices = {
     if (!child) return null;
 
     // 📦 Get grouped game progress
-    const gameProgress = await gameProgressService.getGroupedProgressByChild(id);
+    const gameProgress = await gameProgressService.getGroupedProgressByChild(
+      id
+    );
 
     return {
       ...child,
@@ -50,6 +53,13 @@ const childrenServices = {
     };
   },
 
+  updateAvatar: async (childId: number, avatarId: number) => {
+    const child = await childrenRepo.findOne({ where: { id: childId } });
+    if (!child) throw new Error("Child not found");
+
+    child.avatarId = avatarId;
+    return await childrenRepo.save(child);
+  },
 };
 
 export default childrenServices;

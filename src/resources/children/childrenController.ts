@@ -61,6 +61,18 @@ const childrenController = {
   return sendResponse(res, responseCodes.OK, "Child details fetched", child, null);
 }),
 
+  updateAvatar: catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { avatarId } = req.body;
+
+    if (!avatarId) {
+      return sendResponse(res, responseCodes.BAD, "avatarId is required", null, null);
+    }
+
+    const child = await childrenService.updateAvatar(parseInt(id), avatarId);
+    return sendResponse(res, responseCodes.OK, "Avatar updated successfully", child, null);
+  }),
+
 
 };
 

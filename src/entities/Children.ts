@@ -5,8 +5,10 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from "typeorm";
 import Users from "./Users";
+import Avatar from "./Avatar";
 
 export enum AgeGroup {
   TWO_TO_THREE = "2-3",
@@ -54,13 +56,20 @@ export default class Children {
   @ManyToOne(() => Users, (user) => user.children, { onDelete: "CASCADE" })
   user: Users;
 
+  @ManyToOne(() => Avatar, (avatar) => avatar.children, { nullable: true })
+  @JoinColumn({ name: "avatarId" })
+  avatar?: Avatar;
+
+  @Column({ nullable: true })
+  avatarId?: number;
+
   @Column({ default: 0 })
   rewards: number;
 
   @Column({ default: 0 })
   totalXP: number;
 
-  @Column("simple-array", { default: '' })
+  @Column("simple-array", { default: "" })
   badges: string[]; // e.g., ["Fluency Star", "Vocabulary Champ"]
 
   @Column({ default: 0 })
@@ -69,7 +78,7 @@ export default class Children {
   @Column({ default: 0 })
   remainingLessons: number;
 
-  @Column("simple-array", { default: '' })
+  @Column("simple-array", { default: "" })
   differentLessons: string[]; // e.g., ["Amina's Choice", "Eco Heroes"]
 
   @CreateDateColumn()
@@ -77,5 +86,5 @@ export default class Children {
 
   @UpdateDateColumn()
   updatedDate: Date;
-    gameProgress: any;
+  gameProgress: any;
 }
