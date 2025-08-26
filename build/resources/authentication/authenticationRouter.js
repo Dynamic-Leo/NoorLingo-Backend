@@ -8,4 +8,5 @@ const authenticationController_1 = __importDefault(require("./authenticationCont
 const authenticationRouter = express_1.default.Router();
 // authenticationRouter.route("/login").post(authenticationController.login);
 authenticationRouter.post("/login", authenticationController_1.default.login);
+authenticationRouter.post("/google", authenticationController_1.default.googleLogin);
 exports.default = authenticationRouter;

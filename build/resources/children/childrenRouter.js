@@ -9,4 +9,5 @@ const childrenRouter = express_1.default.Router();
 childrenRouter.route("/add").post(childrenController_1.default.create);
 childrenRouter.route("/getByUser/:userId").get(childrenController_1.default.getByUser);
 childrenRouter.route("/get/:id").get(childrenController_1.default.getById);
+childrenRouter.route("/:id/avatar").put(childrenController_1.default.updateAvatar);
 exports.default = childrenRouter;

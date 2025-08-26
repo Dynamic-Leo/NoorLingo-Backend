@@ -50,5 +50,27 @@ const usersServices = {
         const { password, createdDate, updatedDate } = user, sanitizedUser = __rest(user, ["password", "createdDate", "updatedDate"]);
         return sanitizedUser;
     }),
+    findOrCreateByGoogle: (googleId, email, name) => __awaiter(void 0, void 0, void 0, function* () {
+        // 1. Find user by googleId
+        let user = yield usersRepo.findOne({ where: { googleId } });
+        if (user) {
+            return user;
+        }
+        // 2. If not found, find by email to link accounts
+        user = yield usersRepo.findOne({ where: { email } });
+        if (user) {
+            user.googleId = googleId;
+            yield usersRepo.save(user);
+            return user;
+        }
+        // 3. If no user exists, create a new one
+        const newUser = usersRepo.create({
+            googleId,
+            email,
+            name,
+            role: "user", // Default role for new Google users
+        });
+        return yield usersRepo.save(newUser);
+    }),
 };
 exports.default = usersServices;

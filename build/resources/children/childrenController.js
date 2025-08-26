@@ -42,5 +42,14 @@ const childrenController = {
         }
         return (0, sendResponse_1.default)(res, responseCodes_1.default.OK, "Child details fetched", child, null);
     })),
+    updateAvatar: (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const { id } = req.params;
+        const { avatarId } = req.body;
+        if (!avatarId) {
+            return (0, sendResponse_1.default)(res, responseCodes_1.default.BAD, "avatarId is required", null, null);
+        }
+        const child = yield childrenServices_1.default.updateAvatar(parseInt(id), avatarId);
+        return (0, sendResponse_1.default)(res, responseCodes_1.default.OK, "Avatar updated successfully", child, null);
+    })),
 };
 exports.default = childrenController;

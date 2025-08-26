@@ -40,6 +40,7 @@ const childrenServices = {
                 rewards: true,
                 totalXP: true,
                 badges: true,
+                avatarId: true,
                 lessonsCompleted: true,
                 remainingLessons: true,
                 differentLessons: true,
@@ -53,6 +54,13 @@ const childrenServices = {
         // 📦 Get grouped game progress
         const gameProgress = yield gameProgressServices_1.default.getGroupedProgressByChild(id);
         return Object.assign(Object.assign({}, child), { gameProgress });
+    }),
+    updateAvatar: (childId, avatarId) => __awaiter(void 0, void 0, void 0, function* () {
+        const child = yield childrenRepo.findOne({ where: { id: childId } });
+        if (!child)
+            throw new Error("Child not found");
+        child.avatarId = avatarId;
+        return yield childrenRepo.save(child);
     }),
 };
 exports.default = childrenServices;

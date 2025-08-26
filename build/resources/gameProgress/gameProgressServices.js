@@ -16,20 +16,31 @@ const db_1 = __importDefault(require("../../db"));
 const GameProgress_1 = __importDefault(require("../../entities/GameProgress"));
 const Children_1 = __importDefault(require("../../entities/Children"));
 const gameProgressValidator_1 = require("./gameProgressValidator");
+const lessonGameMap_1 = require("../../utils/lessonGameMap");
 const gameProgressRepo = db_1.default.getRepository(GameProgress_1.default);
 const childrenRepo = db_1.default.getRepository(Children_1.default);
 const gameProgressService = {
     createOrUpdate: (data) => __awaiter(void 0, void 0, void 0, function* () {
         const { childId, lesson, gameName } = data;
+        // 🔒 Validate lesson + gameName pairing
+        if (!lessonGameMap_1.allowedLessons.includes(lesson)) {
+            throw new Error(`Invalid lesson: ${lesson}`);
+        }
+        if (!lessonGameMap_1.lessonGameMap[lesson].includes(gameName)) {
+            throw new Error(`For lesson "${lesson}", gameName must be one of: ${lessonGameMap_1.lessonGameMap[lesson].join(", ")}`);
+        }
+        // Check child exists
         const child = yield childrenRepo.findOne({ where: { id: childId } });
         if (!child)
             throw new Error("Child not found");
         let xpEarned = 0;
         let score = 0;
+        // Check if progress already exists
         let progress = yield gameProgressRepo.findOne({
             where: { child: { id: childId }, lesson, gameName },
         });
         const isFirstTimeCompletion = !progress;
+        // Case 1: Fluency-based games
         if (gameProgressValidator_1.fluencyGames.includes(gameName)) {
             const { pronunciation, speed, intonation, completed } = data;
             const scoreMap = {
@@ -80,6 +91,7 @@ const gameProgressService = {
                 });
             }
         }
+        // Case 2: Paragraph-based games
         else if (gameName === "Pollution Police" || gameName === "Masdar City Summary") {
             const { paragraph } = data;
             xpEarned = 20;
@@ -104,6 +116,7 @@ const gameProgressService = {
                 });
             }
         }
+        // Case 3: Standard quiz-type games
         else {
             const { completed, correctAnswers, totalQuestions } = data;
             score = Math.round((correctAnswers / totalQuestions) * 100);
@@ -133,6 +146,7 @@ const gameProgressService = {
                 });
             }
         }
+        // Update child stats
         child.totalXP += xpEarned;
         if (isFirstTimeCompletion)
             child.rewards += 1;

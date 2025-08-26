@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Gender = exports.FluencyLevel = exports.AgeGroup = void 0;
 const typeorm_1 = require("typeorm");
 const Users_1 = __importDefault(require("./Users"));
+const Avatar_1 = __importDefault(require("./Avatar"));
 var AgeGroup;
 (function (AgeGroup) {
     AgeGroup["TWO_TO_THREE"] = "2-3";
@@ -68,6 +69,15 @@ __decorate([
     __metadata("design:type", Users_1.default)
 ], Children.prototype, "user", void 0);
 __decorate([
+    (0, typeorm_1.ManyToOne)(() => Avatar_1.default, (avatar) => avatar.children, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "avatarId" }),
+    __metadata("design:type", Avatar_1.default)
+], Children.prototype, "avatar", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Number)
+], Children.prototype, "avatarId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ default: 0 }),
     __metadata("design:type", Number)
 ], Children.prototype, "rewards", void 0);
@@ -76,7 +86,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Children.prototype, "totalXP", void 0);
 __decorate([
-    (0, typeorm_1.Column)("simple-array", { default: '' }),
+    (0, typeorm_1.Column)("simple-array", { default: "" }),
     __metadata("design:type", Array)
 ], Children.prototype, "badges", void 0);
 __decorate([
@@ -88,7 +98,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Children.prototype, "remainingLessons", void 0);
 __decorate([
-    (0, typeorm_1.Column)("simple-array", { default: '' }),
+    (0, typeorm_1.Column)("simple-array", { default: "" }),
     __metadata("design:type", Array)
 ], Children.prototype, "differentLessons", void 0);
 __decorate([
