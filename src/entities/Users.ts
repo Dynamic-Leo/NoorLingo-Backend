@@ -22,16 +22,19 @@ export default class Users {
   @Column({ unique: true, nullable: false })
   email: string;
 
-  @Column({ nullable: false })
+  @Column({ nullable: true })
   password: string;
+
+  // Added googleId to store the unique identifier from Google.
+  @Column({ unique: true, nullable: true })
+  googleId?: string;
 
   @Column({ nullable: false })
   role: string;
 
-
   @Column({ type: "boolean", default: true })
   isActive: boolean;
-  
+
   @Column({ default: () => "CURRENT_TIMESTAMP" })
   createdDate: Date;
 
@@ -47,8 +50,8 @@ export default class Users {
   updateUpdatedDate() {
     this.updatedDate = new Date();
   }
-  
+
   // Inside class Users:
-  @OneToMany(() => Children, (child : Children) => child.user)
+  @OneToMany(() => Children, (child: Children) => child.user)
   children: Children[];
 }

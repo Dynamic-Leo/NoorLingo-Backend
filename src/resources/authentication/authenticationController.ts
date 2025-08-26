@@ -6,6 +6,10 @@ import responseCodes from "../../utils/responseCodes";
 import usersServices from "../users/usersServices";
 import passwordHash from "../../utils/passwordHash";
 import jwtServices from "../../utils/jwtServices";
+import { OAuth2Client } from "google-auth-library";
+
+// The CLIENT_ID should be the Web Client ID from your Google Cloud Console.
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const authenticationController = {
   login: catchAsync(async (req: Request, res: Response) => {
@@ -21,7 +25,7 @@ const authenticationController = {
     }
     const { email, password } = req.body;
     const user = await usersServices.getByEmail(email);
-    if (!user) {
+    if (!user || !user.password) {
       return await sendResponse(
         res,
         responseCodes.NOT_AUTHORIZED,
@@ -58,6 +62,39 @@ const authenticationController = {
       responseCodes.OK,
       "Logged in",
       {id: user.id, name: user.name, accessToken},
+      null
+    );
+  }),
+
+    googleLogin: catchAsync(async (req: Request, res: Response) => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+        return sendResponse(res, responseCodes.BAD, "Google ID Token is required", null, null);
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.sub || !payload.email || !payload.name) {
+      return sendResponse(res, responseCodes.BAD, "Invalid Google token payload", null, null);
+    }
+
+    const { sub: googleId, email, name } = payload;
+
+    const user = await usersServices.findOrCreateByGoogle(googleId, email, name);
+
+    const accessToken = await jwtServices.create({ userId: user.id });
+
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Logged in with Google successfully",
+      { id: user.id, name: user.name, email: user.email, accessToken },
       null
     );
   }),
