@@ -19,6 +19,45 @@ type ScoreMapKey =
   | "Varied"
   | "Expressive";
 
+const updateChildStreak = (child: Children): Children => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize to the start of the day
+
+  const lastActivity = child.lastActivityDate
+    ? new Date(child.lastActivityDate)
+    : null;
+  if (lastActivity) {
+    lastActivity.setHours(0, 0, 0, 0); // Normalize the last activity date
+  }
+
+  // Case 1: First activity ever
+  if (!lastActivity) {
+    child.currentStreak = 1;
+  } else {
+    const diffTime = today.getTime() - lastActivity.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      // Case 2: Consecutive day activity
+      child.currentStreak += 1;
+    } else if (diffDays > 1) {
+      // Case 3: Streak is broken
+      child.currentStreak = 1;
+    }
+    // Case 4 (else): Activity on the same day (diffDays === 0). Do nothing to the streak.
+  }
+
+  // Always update the last activity date to today if there was activity
+  child.lastActivityDate = today;
+
+  // Update longest streak if current streak is greater
+  if (child.currentStreak > child.longestStreak) {
+    child.longestStreak = child.currentStreak;
+  }
+
+  return child;
+};
+
 const gameProgressService = {
   createOrUpdate: async (data: any) => {
     const { childId, lesson, gameName } = data;
@@ -29,7 +68,9 @@ const gameProgressService = {
     }
     if (!lessonGameMap[lesson].includes(gameName)) {
       throw new Error(
-        `For lesson "${lesson}", gameName must be one of: ${lessonGameMap[lesson].join(", ")}`
+        `For lesson "${lesson}", gameName must be one of: ${lessonGameMap[
+          lesson
+        ].join(", ")}`
       );
     }
 
@@ -101,7 +142,10 @@ const gameProgressService = {
     }
 
     // Case 2: Paragraph-based games
-    else if (gameName === "Pollution Police" || gameName === "Masdar City Summary") {
+    else if (
+      gameName === "Pollution Police" ||
+      gameName === "Masdar City Summary"
+    ) {
       const { paragraph } = data;
       xpEarned = 20;
       score = 100;
@@ -166,6 +210,7 @@ const gameProgressService = {
     if (!child.differentLessons.includes(lesson)) {
       child.differentLessons.push(lesson);
     }
+    updateChildStreak(child);
 
     await childrenRepo.save(child);
     return await gameProgressRepo.save(progress);

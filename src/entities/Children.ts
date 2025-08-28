@@ -81,6 +81,15 @@ export default class Children {
   @Column("simple-array", { default: "" })
   differentLessons: string[]; // e.g., ["Amina's Choice", "Eco Heroes"]
 
+  @Column({ type: "int", default: 0 })
+  currentStreak: number;
+
+  @Column({ type: "int", default: 0 })
+  longestStreak: number;
+
+  @Column({ type: "date", nullable: true })
+  lastActivityDate: Date | null;
+
   @CreateDateColumn()
   createdDate: Date;
 
