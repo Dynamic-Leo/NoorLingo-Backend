@@ -102,6 +102,18 @@ __decorate([
     __metadata("design:type", Array)
 ], Children.prototype, "differentLessons", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "int", default: 0 }),
+    __metadata("design:type", Number)
+], Children.prototype, "currentStreak", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "int", default: 0 }),
+    __metadata("design:type", Number)
+], Children.prototype, "longestStreak", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "date", nullable: true }),
+    __metadata("design:type", Object)
+], Children.prototype, "lastActivityDate", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], Children.prototype, "createdDate", void 0);

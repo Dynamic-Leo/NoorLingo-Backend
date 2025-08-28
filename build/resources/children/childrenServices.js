@@ -14,8 +14,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const db_1 = __importDefault(require("../../db"));
 const Children_1 = __importDefault(require("../../entities/Children"));
+const GameProgress_1 = __importDefault(require("../../entities/GameProgress"));
+const lessonGameMap_1 = require("../../utils/lessonGameMap");
 const gameProgressServices_1 = __importDefault(require("../gameProgress/gameProgressServices"));
+const gameProgressValidator_1 = require("../gameProgress/gameProgressValidator");
 const childrenRepo = db_1.default.getRepository(Children_1.default);
+const gameProgressRepo = db_1.default.getRepository(GameProgress_1.default);
 const childrenServices = {
     create: (data) => __awaiter(void 0, void 0, void 0, function* () {
         const child = childrenRepo.create(data);
@@ -41,9 +45,12 @@ const childrenServices = {
                 totalXP: true,
                 badges: true,
                 avatarId: true,
-                lessonsCompleted: true,
-                remainingLessons: true,
-                differentLessons: true,
+                // lessonsCompleted: true,
+                // remainingLessons: true,
+                // differentLessons: true,
+                currentStreak: true,
+                longestStreak: true,
+                lastActivityDate: true,
                 user: {
                     name: true,
                 },
@@ -51,9 +58,56 @@ const childrenServices = {
         });
         if (!child)
             return null;
-        // 📦 Get grouped game progress
+        // 1. GET ALL COMPLETED GAMES FOR THIS CHILD
+        const completedGames = yield gameProgressRepo.find({
+            where: { child: { id: id }, isCompleted: true },
+            select: ["lesson", "gameName"],
+        });
+        // 2. CALCULATE TOTALS FROM THE SOURCE OF TRUTH (lessonGameMap)
+        const allLessons = Object.keys(lessonGameMap_1.lessonGameMap);
+        const totalLessons = allLessons.length;
+        const totalGames = Object.values(lessonGameMap_1.lessonGameMap).flat().length;
+        const totalFluencyGames = gameProgressValidator_1.fluencyGames.length;
+        // 3. CALCULATE CHILD-SPECIFIC STATS
+        const gamesCompleted = completedGames.length;
+        const gamesRemaining = totalGames - gamesCompleted;
+        const completedFluencyGames = completedGames.filter((game) => gameProgressValidator_1.fluencyGames.includes(game.gameName)).length;
+        const remainingFluencyGames = totalFluencyGames - completedFluencyGames;
+        // 4. CALCULATE COMPLETED LESSONS (THE CORE LOGIC)
+        let lessonsCompleted = 0;
+        const completedGamesByLesson = completedGames.reduce((acc, game) => {
+            if (!acc[game.lesson]) {
+                acc[game.lesson] = new Set();
+            }
+            acc[game.lesson].add(game.gameName);
+            return acc;
+        }, {});
+        // Check each lesson to see if it's complete
+        for (const lessonName of allLessons) {
+            const requiredGames = lessonGameMap_1.lessonGameMap[lessonName];
+            const completedGamesInThisLesson = completedGamesByLesson[lessonName];
+            if (completedGamesInThisLesson) {
+                const isLessonComplete = requiredGames.every((game) => completedGamesInThisLesson.has(game));
+                if (isLessonComplete) {
+                    lessonsCompleted++;
+                }
+            }
+        }
+        const lessonsRemaining = totalLessons - lessonsCompleted;
+        // 5. GET THE DETAILED GAME PROGRESS FOR THE RESPONSE
         const gameProgress = yield gameProgressServices_1.default.getGroupedProgressByChild(id);
-        return Object.assign(Object.assign({}, child), { gameProgress });
+        // 6. ASSEMBLE THE FINAL RESPONSE OBJECT
+        return Object.assign(Object.assign({}, child), { stats: {
+                totalLessons,
+                lessonsCompleted,
+                lessonsRemaining,
+                totalGames,
+                gamesCompleted,
+                gamesRemaining,
+                totalFluencyGames,
+                completedFluencyGames,
+                remainingFluencyGames,
+            }, gameProgress });
     }),
     updateAvatar: (childId, avatarId) => __awaiter(void 0, void 0, void 0, function* () {
         const child = yield childrenRepo.findOne({ where: { id: childId } });
