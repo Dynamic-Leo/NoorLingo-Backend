@@ -34,7 +34,7 @@ const childrenServices = {
     getById: (id) => __awaiter(void 0, void 0, void 0, function* () {
         const child = yield childrenRepo.findOne({
             where: { id },
-            relations: ["user"],
+            relations: ["user", "avatar"],
             select: {
                 id: true,
                 name: true,
@@ -44,20 +44,29 @@ const childrenServices = {
                 rewards: true,
                 totalXP: true,
                 badges: true,
-                avatarId: true,
-                // lessonsCompleted: true,
-                // remainingLessons: true,
-                // differentLessons: true,
                 currentStreak: true,
                 longestStreak: true,
                 lastActivityDate: true,
                 user: {
                     name: true,
                 },
+                avatar: {
+                    id: true,
+                    name: true,
+                    imageUrl: true,
+                },
             },
         });
         if (!child)
             return null;
+        // This is crucial for it to work on CPanel and other production environments.
+        if (child.avatar && child.avatar.imageUrl) {
+            const baseUrl = process.env.APP_URL || "";
+            const imageUrl = child.avatar.imageUrl.startsWith("/")
+                ? child.avatar.imageUrl.substring(1)
+                : child.avatar.imageUrl;
+            child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+        }
         // 1. GET ALL COMPLETED GAMES FOR THIS CHILD
         const completedGames = yield gameProgressRepo.find({
             where: { child: { id: id }, isCompleted: true },
@@ -108,6 +117,17 @@ const childrenServices = {
                 completedFluencyGames,
                 remainingFluencyGames,
             }, gameProgress });
+    }),
+    edit: (childId, data) => __awaiter(void 0, void 0, void 0, function* () {
+        const child = yield childrenRepo.findOne({ where: { id: childId } });
+        if (!child) {
+            throw new Error("Child not found");
+        }
+        // Merge the new data into the existing child object
+        Object.assign(child, data);
+        // Save the updated child to the database
+        const updatedChild = yield childrenRepo.save(child);
+        return updatedChild;
     }),
     updateAvatar: (childId, avatarId) => __awaiter(void 0, void 0, void 0, function* () {
         const child = yield childrenRepo.findOne({ where: { id: childId } });

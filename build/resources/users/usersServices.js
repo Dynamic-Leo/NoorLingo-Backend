@@ -42,14 +42,28 @@ const usersServices = {
         const userRepo = index_1.default.getRepository(Users_1.default);
         const user = yield userRepo.findOne({
             where: { id: userId },
-            relations: ["children"],
+            relations: ["children", "children.avatar"],
         });
         if (!user)
             return null;
-        // Destructure to remove unwanted fields
-        const { password, createdDate, updatedDate } = user, sanitizedUser = __rest(user, ["password", "createdDate", "updatedDate"]);
+        const baseUrl = process.env.APP_URL || '';
+        if (user.children) {
+            user.children.forEach(child => {
+                if (child.avatar && child.avatar.imageUrl) {
+                    const imageUrl = child.avatar.imageUrl.startsWith('/')
+                        ? child.avatar.imageUrl.substring(1)
+                        : child.avatar.imageUrl;
+                    child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+                }
+            });
+        }
+        const { password } = user, sanitizedUser = __rest(user, ["password"]);
         return sanitizedUser;
     }),
+    // Destructure to remove unwanted fields
+    //   const { password, createdDate, updatedDate, ...sanitizedUser } = user;
+    //   return sanitizedUser;
+    // },
     findOrCreateByGoogle: (googleId, email, name) => __awaiter(void 0, void 0, void 0, function* () {
         // 1. Find user by googleId
         let user = yield usersRepo.findOne({ where: { googleId } });

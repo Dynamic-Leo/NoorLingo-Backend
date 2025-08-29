@@ -1,0 +1,2417 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    deploy.yml
+src/
+  db/
+    index.ts
+  entities/
+    Avatar.ts
+    Children.ts
+    GameProgress.ts
+    Users.ts
+  middleware/
+    authenticationMiddleware.ts
+    errorHandler.middleware.ts
+    loggingMiddleware.ts
+  resources/
+    authentication/
+      authenticationController.ts
+      authenticationRouter.ts
+      authenticationValidator.ts
+    avatar/
+      avatarController.ts
+      avatarRouter.ts
+      avatarService.ts
+    children/
+      childrenController.ts
+      childrenRouter.ts
+      childrenServices.ts
+      childrenValidator.ts
+    gameProgress/
+      gameProgressController.ts
+      gameProgressRouter.ts
+      gameProgressServices.ts
+      gameProgressValidator.ts
+    users/
+      usersController.ts
+      usersRouter.ts
+      usersServices.ts
+      usersValidator.ts
+  utils/
+    appError.ts
+    catchAsync.ts
+    jwtServices.ts
+    lessonGameMap.ts
+    passwordHash.ts
+    passwordValidator.ts
+    responseCodes.ts
+    sendResponse.ts
+    socketEmitter.ts
+    token.ts
+    uploadFile.ts
+  app.ts
+  server.ts
+  socket.ts
+package.json
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".github/workflows/deploy.yml">
+name: 🚀 Deploy website on push
+on: 
+  push:
+    branches:
+      - main
+jobs:
+  web-deploy:
+    name: 🎉 Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🚚 Get latest code
+      uses: actions/checkout@v2
+    
+    - name: 📂 Sync build files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.0-beta
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./build/
+        protocol: ftp  # Try SFTP instead of FTPS
+        # port: 21  # SFTP typically uses port 22
+</file>
+
+<file path="src/entities/Avatar.ts">
+// src/entities/Avatar.ts
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import Children from "./Children";
+
+@Entity()
+export default class Avatar {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string; // e.g. "Boy" or "Girl"
+
+  @Column()
+  imageUrl: string; // URL or relative path to avatar image
+
+  @OneToMany(() => Children, (child) => child.avatar)
+  children: Children[];
+}
+</file>
+
+<file path="src/middleware/errorHandler.middleware.ts">
+import { NextFunction, Request, Response } from "express";
+
+import AppError from "../utils/appError";
+
+import { QueryFailedError } from "typeorm";
+
+import { AxiosError } from "axios";
+
+import { EntityMetadataNotFoundError } from "typeorm/error/EntityMetadataNotFoundError";
+
+import { ValidationError } from "class-validator";
+
+class ApiError extends Error {
+  constructor(message: string, public statusCode: number) {
+    super(message);
+  }
+}
+
+export default async (
+  err: any,
+
+  req: Request,
+
+  res: Response,
+
+  next: NextFunction
+) => {
+  console.log("ERR CAUGHT IN GLOBAL MIDDLEWARE");
+
+  console.error("ERROR =>", err);
+
+  console.error("ERROR MESSAGE =>", err.message);
+
+  console.error("ERROR NAME =>", err.name);
+
+  console.error("ERROR CODE =>", err.code);
+
+  console.error("ERROR STACK =>", err.stack);
+
+  const handleDuplicateFieldsDB = (err: any): AppError => {
+    if (err.detail) {
+      const field = err.detail.match(/\((.*?)\)/)[1];
+
+      const errorKey = field;
+
+      return new AppError(`${errorKey} already exists`, 400, true);
+    }
+
+    return new AppError(err, 400, true);
+  };
+
+  const invalidForeignKey = (err: any): AppError => {
+    if (err.detail) {
+      const field = err.detail.match(/\((.*?)\)/)[1];
+
+      const errorKey = field;
+
+      return new AppError(`${errorKey} not found`, 400, true);
+    }
+
+    return new AppError(
+      err,
+
+      //'Invalid foreign key error',
+
+      400,
+      true
+    );
+  };
+
+  const checkNull = (err: any): AppError => {
+    if (err.detail) {
+      const field = err.detail.match(/\((.*?)\)/)[1];
+
+      const errorKey = field;
+
+      return new AppError(`${errorKey} cannot be null`, 400, true);
+    }
+
+    return new AppError(
+      err,
+
+      //'Null value error',
+
+      400,
+      true
+    );
+  };
+
+  class DatabaseError extends Error {
+    constructor(message: string) {
+      super(message);
+
+      this.name = "DatabaseError";
+    }
+  }
+
+  const invalidInput = (err: any): AppError => {
+    const invalidValueMatch = err.message.match(
+      /invalid input syntax for type (\w+): "(.*)"/
+    );
+
+    const invalidType = invalidValueMatch ? invalidValueMatch[1] : "unknown";
+
+    const invalidValue = invalidValueMatch ? invalidValueMatch[2] : "unknown";
+
+    let errorMessage: string;
+
+    switch (invalidType.toLowerCase()) {
+      case "uuid":
+        errorMessage = `Invalid UUID provided: ${invalidValue}`;
+
+        break;
+
+      case "integer":
+
+      case "int":
+
+      case "number":
+        errorMessage = `Invalid number provided: ${invalidValue}`;
+
+        break;
+
+      case "date":
+
+      case "datetime":
+
+      case "timestamp":
+        errorMessage = `Invalid date provided: ${invalidValue}`;
+
+        break;
+
+      default:
+        errorMessage = `Invalid ${invalidType} value provided: ${invalidValue}`;
+
+        break;
+    }
+
+    return new AppError(errorMessage, 400, true);
+  };
+
+  const handleValidationError = (err: any): AppError => {
+    const errors = Object.values(err.errors).map((val: any) => val.message);
+
+    return new AppError(errors[0], 400, true);
+  };
+
+  // if (err instanceof ValidationError) {
+
+  //     err = handleValidationError(err);
+
+  //   }
+
+  const handleError = (err: any): AppError => {
+    return new AppError(err.message, 400, true);
+  };
+
+  // Default error object to return
+
+  const errorResponse = {
+    message: "Internal Server Error",
+  };
+
+  //  if (err.name === 'ValidationError') {
+
+  //     // TypeORM validation error
+
+  //     const validationErrors = Object.values(err.errors).map((val: any) => val.message);
+
+  //     err=new AppError( validationErrors ,400,true);
+
+  //   }else
+
+  if (err instanceof EntityMetadataNotFoundError) {
+    console.error("Metadata not found for entity:", err.message);
+
+    err = new AppError("Entity metadata not found", 400, true);
+  } else if (err instanceof QueryFailedError) {
+    // if (err.message.includes('column')) {
+
+    err = handleDuplicateFieldsDB(err);
+
+    // } else {
+
+    //   err = new AppError(`${errorKey} already exists`, 400, true);
+
+    // }
+  } else if (err.code === "23505") {
+    err = handleDuplicateFieldsDB(err);
+  } else if (err.code === "23503") {
+    err = invalidForeignKey(err);
+  } else if (err.code === "23502") {
+    err = checkNull(err);
+  } else if (err.code === "22P02") {
+    err = invalidInput(err);
+  } else if (err.name === "Error") {
+    err = handleError(err);
+  } else if (err.message === "Request failed with status code 401") {
+    console.error("Request failed with status code 401");
+
+    err = new AppError("Unauthorized", 401, true);
+  } else if (err.message === "Request failed with status code 400") {
+    console.error("Request failed with status code 400");
+
+    err = new AppError("Request Failed", 400, true);
+  } else if (err.message === "Request failed with status code 500") {
+    console.error("Request failed with status code 500");
+
+    err = new AppError("Internal Server Error", 500, true);
+  } else if (err.name === "UpdateValuesMissingError") {
+    console.error(
+      "UpdateValuesMissingError: Cannot perform update query because update values are not defined"
+    );
+
+    err = new AppError(
+      "Cannot perform update query because update values are not defined",
+      400,
+      true
+    );
+  } else if (err instanceof CustomError) {
+    // Handle specific error types if needed
+
+    errorResponse.message = err.message;
+
+    err = new AppError(errorResponse.message, 500, true);
+
+    // You can also set a specific status code for this type of error if needed
+
+    // res.status(400);
+  } else if (err instanceof DatabaseError) {
+    // Handle database-specific errors
+
+    console.error("Database error:", err);
+
+    err = new AppError("Database operation failed.", 500, true);
+  } else if (
+    err.name === "QueryFailedError" ||
+    err.name === "EntityNotFoundError"
+  ) {
+    // Handle TypeORM database errors (you can add more specific error checks if needed)
+
+    errorResponse.message = "Database Error";
+
+    err = new AppError(errorResponse.message, 500, true);
+
+    // You can also set a specific status code for database errors if needed
+
+    // res.status(500);
+  } else if (err instanceof ApiError) {
+    // Handle custom AppError (e.g., validation errors, business logic errors)
+
+    err = new AppError(err.message, err.statusCode);
+  } else if (err.isAxiosError) {
+    // Handle AxiosError (e.g., HTTP request errors)
+
+    const axiosError = err as AxiosError;
+
+    err = new AppError("Request failed.", axiosError.response?.status || 500);
+  } else if (err instanceof ValidationError) {
+    err = handleValidationError(err);
+  } else {
+    err = new AppError(err.message, err.statusCode, false);
+  }
+
+  const responsePayload = {
+    status: "error",
+
+    message: err.message,
+  };
+
+  // if (process.env.NODE_ENV === 'development') {
+
+  //   responsePayload['stack'] = err.stack;
+
+  // }
+
+  return res.status(err.statusCode).json(responsePayload);
+};
+
+export class CustomError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    this.name = "CustomError";
+  }
+}
+</file>
+
+<file path="src/resources/avatar/avatarController.ts">
+// src/modules/avatar/avatarController.ts
+import { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import avatarService from "./avatarService";
+
+const avatarController = {
+  getAll: catchAsync(async (req: Request, res: Response) => {
+    const avatars = await avatarService.getAll();
+    return sendResponse(res, responseCodes.OK, "Avatars fetched", avatars, null);
+  }),
+};
+
+export default avatarController;
+</file>
+
+<file path="src/resources/avatar/avatarRouter.ts">
+// src/modules/avatar/avatarRouter.ts
+import express from "express";
+import avatarController from "./avatarController";
+
+const avatarRouter = express.Router();
+
+avatarRouter.get("/", avatarController.getAll);
+
+export default avatarRouter;
+</file>
+
+<file path="src/resources/avatar/avatarService.ts">
+// src/modules/avatar/avatarService.ts
+import AppDataSource from "../../db";
+import Avatar from "../../entities/Avatar";
+
+const avatarRepo = AppDataSource.getRepository(Avatar);
+
+const avatarService = {
+  getAll: async () => {
+    return await avatarRepo.find();
+  },
+
+  create: async (data: Partial<Avatar>) => {
+    const avatar = avatarRepo.create(data);
+    return await avatarRepo.save(avatar);
+  },
+};
+
+export default avatarService;
+</file>
+
+<file path="src/resources/children/childrenValidator.ts">
+import Joi from "joi";
+
+const childrenValidator = {
+  create: Joi.object({
+    name: Joi.string().required(),
+    ageGroup: Joi.string().valid("2-3", "3-5", "5-10").required(),
+    fluencyLevel: Joi.string().valid("Beginner", "Intermediate", "Advanced").required(),
+    gender: Joi.string().valid("Boy", "Girl").required(),
+    user: Joi.number().required(), // userId foreign key
+  }),
+};
+
+export default childrenValidator;
+</file>
+
+<file path="src/resources/gameProgress/gameProgressController.ts">
+import { Request, Response } from "express";
+import gameProgressService from "./gameProgressServices";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import progressValidator from "./gameProgressValidator";
+
+const gameProgressController = {
+  upsertProgress: catchAsync(async (req: Request, res: Response) => {
+    const { error } = progressValidator.upsert.validate(req.body);
+    if (error) {
+      return sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
+
+    const result = await gameProgressService.createOrUpdate(req.body);
+    return sendResponse(
+      res,
+      responseCodes.OK,
+      "Progress updated",
+      result,
+      null
+    );
+  }),
+
+  getChildProgress: catchAsync(async (req: Request, res: Response) => {
+    const childId = parseInt(req.params.childId);
+    const progress = await gameProgressService.getByChild(childId);
+    return sendResponse(
+      res,
+      responseCodes.OK,
+      "Progress fetched",
+      progress,
+      null
+    );
+  }),
+};
+
+export default gameProgressController;
+</file>
+
+<file path="src/resources/gameProgress/gameProgressRouter.ts">
+import express from "express";
+import gameProgressController from "./gameProgressController";
+
+const router = express.Router();
+
+router.post("/upsert", gameProgressController.upsertProgress);
+router.get("/get/:childId", gameProgressController.getChildProgress);
+
+export default router;
+</file>
+
+<file path="src/utils/appError.ts">
+class AppError extends Error {
+  public statusCode: number;
+  public isOperational: boolean;
+  public status: string;
+  public path?: string;
+  public value?: string;
+  public code?: number;
+  public response?: any;
+  public errors?: Array<{ message: string }>;
+
+  constructor(
+    message: string,
+    statusCode: number,
+    isOperational = false,
+    stack = ""
+  ) {
+    console.log("AppError =>", message);
+    console.log("AppError =>", statusCode);
+    console.log("AppError =>", isOperational);
+    console.log("AppError =>", stack);
+
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = isOperational;
+    this.status = `${statusCode}`.startsWith("4") ? "fail" : "error";
+    if (stack) {
+      this.stack = stack;
+    } else {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+}
+
+export default AppError;
+</file>
+
+<file path="src/utils/catchAsync.ts">
+import { NextFunction, Request, Response } from 'express';
+
+type AsyncFunction = (req: Request, res: Response, next: NextFunction) => Promise<any>;
+
+const catchAsync = (fn: AsyncFunction) => 
+  (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch((err) => next(err));
+  };
+
+export default catchAsync;
+</file>
+
+<file path="src/utils/lessonGameMap.ts">
+// src/resources/gameProgress/lessonGameMap.ts
+
+export const lessonGameMap: Record<string, string[]> = {
+  "Amina's Choice": [
+    "Story Introduction",
+    "Checkpoint Quiz",
+    "Fluency Game",
+    "Matching Game",
+    "Word Swap",
+    "Sentence Creator",
+    "Drag and Drop Sorting",
+    "Story Sequencing Puzzle",
+    "Story Sequence MCQs",
+    "Verb Hunt",
+  ],
+  "Eco Heroes of UAE": [
+    "Passage Intro",
+    "Clean or Hurt",
+    "Masdar City",
+    "Masdar City Summary",
+    "Tricky Words",
+    "Read to Rescue",
+    "Pollution Police",
+  ],
+  "The Fat Cat and the Rat": [
+    "Tap the Word",
+    "Dress On Cat",
+    "Cat Trick Quest",
+  ],
+};
+
+// Helper arrays (derived automatically)
+export const allowedLessons = Object.keys(lessonGameMap);
+export const allowedGameNames = Object.values(lessonGameMap).flat();
+</file>
+
+<file path="src/utils/passwordHash.ts">
+import bcryptjs from "bcryptjs";
+
+const hash = async (password: string) => {
+  return await bcryptjs.hash(password, 12);
+};
+
+const validatePassword = async (password: string, hash: string) => {
+  const isValid = await bcryptjs.compare(password, hash);
+  return isValid;
+};
+
+export default { hash, validatePassword };
+</file>
+
+<file path="src/utils/passwordValidator.ts">
+import passwordValidator from "password-validator";
+var schema = new passwordValidator();
+schema
+  .is()
+  .min(8) // Minimum length 8
+  .is()
+  .max(20) // Maximum length 100
+  .has()
+  .uppercase() // Must have uppercase letters
+  .has()
+  .lowercase() // Must have lowercase letters
+  .has()
+  .digits(1) // Must have at least 2 digits
+  .has()
+  .not()
+  .spaces() // Should not have spaces
+  .is()
+  .not()
+  .oneOf(["Passw0rd", "Password123", "qwerty"]);
+export default schema;
+</file>
+
+<file path="src/utils/responseCodes.ts">
+const responseCodes = {
+  OK: 200 as const,
+  CREATED: 201 as const,
+  BAD: 400 as const,
+  NOT_AUTHORIZED: 401 as const,
+  FORBIDDEN: 403 as const,
+  NOT_FOUND: 404 as const,
+  SERVER_ERROR: 500 as const,
+  TOO_MANY_REQUESTS: 429 as const,
+};
+
+export default responseCodes;
+</file>
+
+<file path="src/utils/sendResponse.ts">
+// const apiLogServices = require('../resources/apiLog/apiLogServices');
+import { Response } from "express";
+const sendResponse = async (
+  res: Response,
+  statusCode: number,
+  message: string,
+  data: object | string | null,
+  logId: string | null
+) => {
+  if (data) {
+    // await apiLogServices.updateResponse(logId, message, data, statusCode);
+    res.status(statusCode || 200).send({ message, data });
+  } else {
+    res.status(statusCode || 200).send({ message });
+  }
+};
+
+export default sendResponse;
+</file>
+
+<file path="src/utils/token.ts">
+import jwt from "jsonwebtoken";
+
+interface JWTPayload {
+  id: string;
+  token: string;
+}
+
+export const createAccessToken = (user: any): string => {
+  const payload: JWTPayload = {
+    id: user.id,
+    token: user.token,
+  };
+
+  return jwt.sign(payload, process.env.JWT_SECRET as jwt.Secret, {
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN, // access token valid for 15 minutes
+  });
+};
+
+export const createRefreshToken = (user: any): string => {
+  const payload: JWTPayload = {
+    id: user.id,
+    token: user.token,
+  };
+
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET as jwt.Secret, {
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN, // refresh token valid for 1 days
+  });
+};
+
+export const verifyToken = async (
+  token: string,
+  isRefreshToken = false
+): Promise<JWTPayload> => {
+  return new Promise((resolve, reject) => {
+    jwt.verify(
+      token,
+      isRefreshToken
+        ? (process.env.JWT_REFRESH_SECRET as jwt.Secret)
+        : (process.env.JWT_SECRET as jwt.Secret),
+      (err, payload) => {
+        if (err) return reject(err);
+        resolve(payload as JWTPayload);
+      }
+    );
+  });
+};
+</file>
+
+<file path="src/utils/uploadFile.ts">
+const fs = require("fs");
+const path = require("path");
+
+// const saveImage = function saveBase64Image(base64Data: String) {
+//     const __dirname = "./public/images";
+//     const timestamp = Date.now(); // Get the current timestamp
+//     const randomString = Math.random().toString(36).substring(2, 8); // Generate a random string
+//     const filename = `image_${timestamp}_${randomString}.png`;
+//     const filePath = path.join(__dirname, filename); // Set the file path to the current directory
+
+//     // Remove the data URL header from the base64 data
+//     const imageData = base64Data.replace(/^data:image\/png;base64,/, "");
+
+//     // Save the image to the file system
+//     fs.writeFile(filePath, imageData, "base64", function (err: Error) {
+//         if (err) {
+//             console.error("Error saving the file:", err);
+//         } else {
+//             console.log("File saved successfully:", filePath);
+//         }
+//     });
+
+//     return `images/${filename}`
+// }
+
+
+
+import { promisify } from "util";
+const writeFile = promisify(fs.writeFile);
+const uploadFile = async (file: string) => {
+    try {
+        const match = file.match(/^data:(.+);base64,(.+)$/);
+        if (!match) {
+            throw new Error("Invalid file format");
+        }
+        const [, fileType, fileData] = match
+        const [fileMainType, fileSubType] = fileType.split("/");
+        const fileBuffer = Buffer.from(fileData, "base64");
+        const fileName = Date.now() + "." + fileSubType;
+        let filePath = null;
+        let filePathPrefix = null;
+        if (fileMainType === "image") {
+            filePathPrefix = "images/";
+            filePath = "./public/images/" + fileName;
+        } else if (fileMainType === "video") {
+            filePathPrefix = "videos/";
+            filePath = "./public/videos/" + fileName;
+        } else {
+            filePathPrefix = "files/";
+            filePath = "./public/files/" + fileName;
+        }
+        await writeFile(filePath, fileBuffer);
+        const path = filePathPrefix + fileName;
+        return path;
+    } catch (err) {
+        console.log(err);
+        // return null;
+    }
+};
+
+
+
+
+export default uploadFile;
+
+
+
+
+
+
+// export default { saveImage };
+</file>
+
+<file path="src/entities/GameProgress.ts">
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from "typeorm";
+import Children from "./Children";
+
+@Entity()
+export default class GameProgress {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Children, (child) => child.gameProgress, {
+    onDelete: "CASCADE",
+  })
+  child: Children;
+
+  @Column()
+  lesson: string;
+
+  @Column()
+  gameName: string;
+
+  @Column({ default: false })
+  isCompleted: boolean;
+
+  @Column({ type: "float", default: 0 })
+  score: number;
+
+  @Column({ type: "float", default: 0 })
+  xpEarned: number;
+
+  @Column({ default: 0 })
+  attempts: number;
+
+  @Column({ type: "varchar", length: 50, nullable: true })
+  pronunciation: string;
+
+  @Column({ type: "varchar", length: 50, nullable: true })
+  speed: string;
+
+  @Column({ type: "varchar", length: 50, nullable: true })
+  intonation: string;
+
+  @Column({ type: "varchar", nullable: true })
+  paragraph: string;
+
+  @CreateDateColumn()
+  createdDate: Date;
+
+  @UpdateDateColumn()
+  updatedDate: Date;
+}
+</file>
+
+<file path="src/middleware/authenticationMiddleware.ts">
+import { Request, Response, NextFunction } from "express";
+import AppError from "../utils/appError";
+import catchAsync from "../utils/catchAsync";
+import User from "../entities/Users";
+import { getRepository } from "typeorm";
+import jwtServices from "../utils/jwtServices";
+import AppDataSource from "../db";
+
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: User;
+  }
+}
+
+export default catchAsync(async (req, res, next) => {
+  if (
+    req.url.startsWith("/files") ||
+    req.url.startsWith("/videos") ||
+    req.url.startsWith("/images") ||
+    req.url.startsWith("/logs") ||
+    req.url.endsWith("refreshToken") ||
+    req.url.endsWith("login") ||
+    req.url.endsWith("signup") || 
+    req.url.startsWith("/api/v1/test") ||
+    req.url.endsWith("/bvs/verify") ||
+    req.url.endsWith("/bvs/callback")
+  ) {
+    return next();
+  }
+
+  let token: string | undefined;
+  if (req.headers.authorization?.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (!token) {
+    return next(new AppError("You are not logged in", 401, true));
+  }
+
+  const payload = await jwtServices.authenticate(token);
+  if (!payload) {
+    return res.status(401).send({ message: "Invalid Token!" });
+  }
+
+  // ✅ get repository here, after DB connection is ready
+  const userRepo = AppDataSource.getRepository(User);
+  const currentUser = await userRepo.findOne({
+    where: { id: payload.userId },
+  });
+
+  if (!currentUser) {
+    return next(new AppError("User belonging to this token does not exist", 401, true));
+  }
+
+  req.user = currentUser;
+  next();
+});
+</file>
+
+<file path="src/middleware/loggingMiddleware.ts">
+// import { Request, Response, NextFunction } from "express";
+// import { Buffer } from "buffer"; // Ensure you have @types/node installed for Buffer
+// import { createLogger, transports, format } from "winston";
+// import { v4 as uuidv4 } from "uuid";
+// import catchAsync from "../utils/catchAsync";
+// import moment from "moment";
+
+// // Define the log format
+
+// // Middleware to log HTTP requests and responses
+// // Parse JSON request bodies
+// const loggingMiddleware = catchAsync(
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     const logFormat = format.combine(format.timestamp(), format.json());
+//     // Create a logger with a file transport
+//     const logger = createLogger({
+//       level: "info",
+//       format: logFormat,
+//       transports: [
+//         new transports.File({
+//           filename: `public/logs/${moment().format("DD-MM-YYYY")} http.log`,
+//           level: "info",
+//         }),
+//       ],
+//     });
+//     const id = uuidv4();
+//     const start = Date.now();
+//     const { method, url, headers, body, params, query } = req;
+
+//     // Log request information including request body
+//     logger.info({
+//       id,
+//       type: "request",
+//       method,
+//       url,
+//       headers,
+//       body,
+//       params,
+//       query,
+//       time: moment().format("DD-MM-YYYY hh:mm:ss"),
+//     });
+
+//     const oldWrite = (res as any).write;
+//     const oldEnd = (res as any).end;
+//     let responseBody = {};
+
+//     const chunks: Buffer[] = [];
+
+//     (res as any).write = function (...restArgs: any[]) {
+//       chunks.push(Buffer.from(restArgs[0]));
+//       oldWrite.apply(res, restArgs);
+//     };
+
+//     (res as any).end = function (...restArgs: any[]) {
+//       if (restArgs[0]) {
+//         chunks.push(Buffer.from(restArgs[0]));
+//       }
+//       try {
+//         responseBody = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+//       } catch (err) {
+//         console.log(err);
+//       }
+//       // console.log(body);
+//       oldEnd.apply(res, restArgs);
+//     };
+
+//     // Log response information including response body
+//     res.on("finish", () => {
+//       const duration = Date.now() - start;
+//       const { statusCode, statusMessage } = res;
+//       //   const responseBody = (res as any).locals.body; // Assuming the response body is stored in res.locals.body
+
+//       logger.info({
+//         id,
+//         type: "response",
+//         method,
+//         url,
+//         duration,
+//         statusCode,
+//         statusMessage,
+//         body: responseBody,
+//       });
+//     });
+
+//     next();
+//   }
+// );
+
+// export default loggingMiddleware;
+// // Your routes go here
+</file>
+
+<file path="src/resources/authentication/authenticationValidator.ts">
+import Joi from "joi";
+
+const authenticationValidator = {
+  login: Joi.object({
+    email: Joi.string().email().required().messages({
+      "string.email": "Email must be valid",
+      "string.empty": "Email is required",
+    }),
+    password: Joi.string().min(6).required().messages({
+      "string.min": "Password must be at least 6 characters",
+      "string.empty": "Password is required",
+    }),
+  }),
+};
+
+
+export default authenticationValidator;
+</file>
+
+<file path="src/resources/children/childrenController.ts">
+import { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import childrenService from "./childrenServices";
+import childrenValidator from "./childrenValidator";
+
+const childrenController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const { error } = childrenValidator.create.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
+
+    const child = await childrenService.create(req.body);
+    if (child) {
+      return await sendResponse(
+        res,
+        responseCodes.CREATED,
+        "Child added successfully",
+        child,
+        null
+      );
+    }
+
+    return await sendResponse(
+      res,
+      responseCodes.BAD,
+      "Failed to add child",
+      null,
+      null
+    );
+  }),
+
+  getByUser: catchAsync(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const children = await childrenService.getByUserId(parseInt(userId));
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Children fetched",
+      children,
+      null
+    );
+  }),
+
+  getById: catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const child = await childrenService.getById(parseInt(id));
+  if (!child) {
+    return sendResponse(res, responseCodes.NOT_FOUND, "Child not found", null, null);
+  }
+
+  return sendResponse(res, responseCodes.OK, "Child details fetched", child, null);
+}),
+
+  updateAvatar: catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { avatarId } = req.body;
+
+    if (!avatarId) {
+      return sendResponse(res, responseCodes.BAD, "avatarId is required", null, null);
+    }
+
+    const child = await childrenService.updateAvatar(parseInt(id), avatarId);
+    return sendResponse(res, responseCodes.OK, "Avatar updated successfully", child, null);
+  }),
+
+
+};
+
+export default childrenController;
+</file>
+
+<file path="src/resources/children/childrenRouter.ts">
+import express from "express";
+import childrenController from "./childrenController";
+
+const childrenRouter = express.Router();
+
+childrenRouter.route("/add").post(childrenController.create);
+childrenRouter.route("/getByUser/:userId").get(childrenController.getByUser);
+childrenRouter.route("/get/:id").get(childrenController.getById);
+
+childrenRouter.route("/:id/avatar").put(childrenController.updateAvatar);
+
+
+export default childrenRouter;
+</file>
+
+<file path="src/resources/users/usersController.ts">
+import { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import usersValidator from "./usersValidator";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import passwordHash from "../../utils/passwordHash";
+import usersServices from "./usersServices";
+
+const usersController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const { error } = usersValidator.create.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
+
+    req.body.password = await passwordHash.hash(req.body.password);
+    const user = await usersServices.create(req.body);
+    if (user) {
+      return await sendResponse(
+        res,
+        responseCodes.CREATED,
+        "User created successfully",
+        null,
+        null
+      );
+    }
+    return await sendResponse(
+      res,
+      responseCodes.BAD,
+      "User not created",
+      null,
+      null
+    );
+  }),
+  getAll :catchAsync(async(req:Request,res:Response)=>{
+
+    const all = await usersServices.getAll();
+    if(all){
+      return await sendResponse(
+        res,
+      responseCodes.OK,
+      "User fetched",
+      all,
+      null
+      )
+    }
+    else{
+       return await sendResponse(
+      res,
+      responseCodes.OK,
+      "User not fetched",
+      null,
+      null
+    );
+    }
+
+  }),
+
+  getSingleWithChildren: catchAsync(async (req: Request, res: Response) => {
+  const userId = parseInt(req.params.id);
+  if (isNaN(userId)) {
+    return await sendResponse(
+      res,
+      responseCodes.BAD,
+      "Invalid user ID",
+      null,
+      null
+    );
+  }
+
+  const user = await usersServices.getSingleWithChildren(userId);
+
+  if (user) {
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "User with children fetched successfully",
+      user,
+      null
+    );
+  } else {
+    return await sendResponse(
+      res,
+      responseCodes.NOT_FOUND,
+      "User not found",
+      null,
+      null
+    );
+  }
+}),
+
+};
+
+export default usersController;
+</file>
+
+<file path="src/resources/users/usersRouter.ts">
+import express from "express";
+import usersController from "./usersController";
+const usersRouter = express.Router();
+
+usersRouter.route("/signup").post(usersController.create);
+usersRouter.route("/getAll").get(usersController.getAll)
+usersRouter.get("/:id", usersController.getSingleWithChildren);
+
+
+export default usersRouter;
+</file>
+
+<file path="src/utils/jwtServices.ts">
+import jwt, { JwtPayload } from "jsonwebtoken";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+export interface AuthPayload extends JwtPayload {
+  userId: number;
+}
+
+const jwtServices = {
+  create: async (data: object, expiresIn?: string) => {
+    const jwtKey = process.env.JWT_SECRET;
+    if (!jwtKey) {
+      throw new Error("JWT secret key not found in environment variables");
+    }
+
+    const expireIn = expiresIn || process.env.ACCESS_TOKEN_EXPIRES_IN || "365d";
+    return jwt.sign(data, jwtKey, { expiresIn: expireIn });
+  },
+
+  authenticate: async (token: string): Promise<AuthPayload | null> => {
+    try {
+      const jwtKey = process.env.JWT_SECRET;
+      if (!jwtKey) {
+        throw new Error("JWT secret key not found in environment variables");
+      }
+
+      const decoded = jwt.verify(token, jwtKey) as JwtPayload | string;
+
+      // Ensure we only return objects that contain userId
+      if (typeof decoded === "string") return null;
+      if (!("userId" in decoded)) return null;
+
+      return decoded as AuthPayload;
+    } catch (error) {
+      console.log("JWT verification error:", error);
+      return null;
+    }
+  },
+};
+
+export default jwtServices;
+</file>
+
+<file path="src/utils/socketEmitter.ts">
+// const socketEmitter = {};
+
+// Object.freeze(socketEmitter);
+// export default socketEmitter;
+</file>
+
+<file path="src/server.ts">
+import http from "http";
+import app from "./app";
+// import socketConnection from "./socket";
+
+const PORT = Number(process.env.PORT);
+const server = http.createServer(app);
+// socketConnection(server);
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+</file>
+
+<file path="src/socket.ts">
+// import { Server } from "http";
+// import { Server as SocketServer, Socket } from "socket.io";
+// import app from "./app";
+
+// const socketConnection = (server: Server): void => {
+//   const io: SocketServer = new SocketServer(server, {
+//     cors: { origin: "*" },
+//     maxHttpBufferSize: 100 * 1024 * 1024, // 100MB in bytes
+//   });
+//   app.set("io", io);
+
+//   io.on("connection", async (socket: Socket) => {
+//     socket.join(socket?.handshake?.query?.userId?.toString() || "");
+//     if (socket?.handshake?.query?.branchId) {
+//       socket.join(
+//         "branch" + socket?.handshake?.query?.branchId?.toString() || ""
+//       );
+//     }
+//     console.log("Socket Connected");
+
+//     socket.on("test", (data: Object, callBack: Function) => {
+//       callBack(data);
+//       console.log("Socket tested");
+//     });
+
+//     socket.on("disconnect", () => {
+//       socket.leave(socket?.handshake?.query?.userId?.toString() || "");
+//       if (socket?.handshake?.query?.branchId) {
+//         socket.leave(
+//           "branch" + socket?.handshake?.query?.branchId?.toString() || ""
+//         );
+//       }
+//       console.log("Socket disconnected");
+//     });
+//   });
+// };
+
+// export default socketConnection;
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+
+    "target": "ES6" ,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true ,
+    "module": "CommonJS",
+    "rootDir": "src",
+    "outDir": "build",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "src/server.ts"],
+  "exclude": ["build"]
+}
+</file>
+
+<file path="src/entities/Children.ts">
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinColumn,
+} from "typeorm";
+import Users from "./Users";
+import Avatar from "./Avatar";
+
+export enum AgeGroup {
+  TWO_TO_THREE = "2-3",
+  THREE_TO_FIVE = "3-5",
+  FIVE_TO_TEN = "5-10",
+}
+
+export enum FluencyLevel {
+  BEGINNER = "Beginner",
+  INTERMEDIATE = "Intermediate",
+  ADVANCED = "Advanced",
+}
+
+export enum Gender {
+  BOY = "Boy",
+  GIRL = "Girl",
+}
+
+@Entity()
+export default class Children {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column({
+    type: "enum",
+    enum: AgeGroup,
+  })
+  ageGroup: AgeGroup;
+
+  @Column({
+    type: "enum",
+    enum: FluencyLevel,
+  })
+  fluencyLevel: FluencyLevel;
+
+  @Column({
+    type: "enum",
+    enum: Gender,
+  })
+  gender: Gender;
+
+  @ManyToOne(() => Users, (user) => user.children, { onDelete: "CASCADE" })
+  user: Users;
+
+  @ManyToOne(() => Avatar, (avatar) => avatar.children, { nullable: true })
+  @JoinColumn({ name: "avatarId" })
+  avatar?: Avatar;
+
+  @Column({ nullable: true })
+  avatarId?: number;
+
+  @Column({ default: 0 })
+  rewards: number;
+
+  @Column({ default: 0 })
+  totalXP: number;
+
+  @Column("simple-array", { default: "" })
+  badges: string[]; // e.g., ["Fluency Star", "Vocabulary Champ"]
+
+  @Column({ default: 0 })
+  lessonsCompleted: number;
+
+  @Column({ default: 0 })
+  remainingLessons: number;
+
+  @Column("simple-array", { default: "" })
+  differentLessons: string[]; // e.g., ["Amina's Choice", "Eco Heroes"]
+
+  @Column({ type: "int", default: 0 })
+  currentStreak: number;
+
+  @Column({ type: "int", default: 0 })
+  longestStreak: number;
+
+  @Column({ type: "date", nullable: true })
+  lastActivityDate: Date | null;
+
+  @CreateDateColumn()
+  createdDate: Date;
+
+  @UpdateDateColumn()
+  updatedDate: Date;
+  gameProgress: any;
+}
+</file>
+
+<file path="src/resources/authentication/authenticationController.ts">
+import { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import authenticationValidator from "./authenticationValidator";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import usersServices from "../users/usersServices";
+import passwordHash from "../../utils/passwordHash";
+import jwtServices from "../../utils/jwtServices";
+import { OAuth2Client } from "google-auth-library";
+
+// The CLIENT_ID should be the Web Client ID from your Google Cloud Console.
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const authenticationController = {
+  login: catchAsync(async (req: Request, res: Response) => {
+    const { error } = authenticationValidator.login.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
+    const { email, password } = req.body;
+    const user = await usersServices.getByEmail(email);
+    if (!user || !user.password) {
+      return await sendResponse(
+        res,
+        responseCodes.NOT_AUTHORIZED,
+        "Invalid email or password",
+        null,
+        null
+      );
+    }
+    const isValidPassword = await passwordHash.validatePassword(
+      password,
+      user.password
+    );
+    if (!isValidPassword) {
+      return await sendResponse(
+        res,
+        responseCodes.NOT_AUTHORIZED,
+        "Invalid email or password",
+        null,
+        null
+      );
+    }
+
+    const accessToken = await jwtServices.create({ userId: user.id });
+
+        // Remove password from response
+    const userData = { ...user, accessToken };
+    delete (userData as any).password;
+
+    // const userData = JSON.parse(JSON.stringify(user));
+    // delete userData.password;
+    userData.accessToken = accessToken;
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Logged in",
+      {id: user.id, name: user.name, accessToken},
+      null
+    );
+  }),
+
+    googleLogin: catchAsync(async (req: Request, res: Response) => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+        return sendResponse(res, responseCodes.BAD, "Google ID Token is required", null, null);
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.sub || !payload.email || !payload.name) {
+      return sendResponse(res, responseCodes.BAD, "Invalid Google token payload", null, null);
+    }
+
+    const { sub: googleId, email, name } = payload;
+
+    const user = await usersServices.findOrCreateByGoogle(googleId, email, name);
+
+    const accessToken = await jwtServices.create({ userId: user.id });
+
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Logged in with Google successfully",
+      { id: user.id, name: user.name, email: user.email, accessToken },
+      null
+    );
+  }),
+};
+
+export default authenticationController;
+</file>
+
+<file path="src/resources/authentication/authenticationRouter.ts">
+import express from "express";
+import authenticationController from "./authenticationController";
+const authenticationRouter = express.Router();
+
+// authenticationRouter.route("/login").post(authenticationController.login);
+authenticationRouter.post("/login", authenticationController.login);
+authenticationRouter.post("/google", authenticationController.googleLogin);
+
+export default authenticationRouter;
+</file>
+
+<file path="src/resources/children/childrenServices.ts">
+import AppDataSource from "../../db";
+import Children from "../../entities/Children";
+import GameProgress from "../../entities/GameProgress";
+import { lessonGameMap } from "../../utils/lessonGameMap";
+import gameProgressService from "../gameProgress/gameProgressServices";
+import { fluencyGames } from "../gameProgress/gameProgressValidator";
+
+const childrenRepo = AppDataSource.getRepository(Children);
+const gameProgressRepo = AppDataSource.getRepository(GameProgress);
+
+const childrenServices = {
+  create: async (data: Partial<Children>) => {
+    const child = childrenRepo.create(data);
+    return await childrenRepo.save(child);
+  },
+
+  getByUserId: async (userId: number) => {
+    return await childrenRepo.find({
+      where: { user: { id: userId } },
+      relations: ["user"],
+    });
+  },
+
+  getById: async (id: number) => {
+    const child = await childrenRepo.findOne({
+      where: { id },
+      relations: ["user", "avatar"],
+      select: {
+        id: true,
+        name: true,
+        ageGroup: true,
+        fluencyLevel: true,
+        gender: true,
+        rewards: true,
+        totalXP: true,
+        badges: true,
+        currentStreak: true,
+        longestStreak: true,
+        lastActivityDate: true,
+        user: {
+          name: true,
+        },
+        avatar: {
+          id: true,
+          name: true,
+          imageUrl: true,
+        },
+      },
+    });
+
+    if (!child) return null;
+
+        // This is crucial for it to work on CPanel and other production environments.
+    if (child.avatar && child.avatar.imageUrl) {
+        const baseUrl = process.env.APP_URL || '';
+        const imageUrl = child.avatar.imageUrl.startsWith('/') 
+            ? child.avatar.imageUrl.substring(1) 
+            : child.avatar.imageUrl;
+        
+        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+    }
+    // 1. GET ALL COMPLETED GAMES FOR THIS CHILD
+    const completedGames = await gameProgressRepo.find({
+      where: { child: { id: id }, isCompleted: true },
+      select: ["lesson", "gameName"],
+    });
+
+    // 2. CALCULATE TOTALS FROM THE SOURCE OF TRUTH (lessonGameMap)
+    const allLessons = Object.keys(lessonGameMap);
+    const totalLessons = allLessons.length;
+    const totalGames = Object.values(lessonGameMap).flat().length;
+    const totalFluencyGames = fluencyGames.length;
+
+    // 3. CALCULATE CHILD-SPECIFIC STATS
+    const gamesCompleted = completedGames.length;
+    const gamesRemaining = totalGames - gamesCompleted;
+
+    const completedFluencyGames = completedGames.filter((game) =>
+      fluencyGames.includes(game.gameName)
+    ).length;
+    const remainingFluencyGames = totalFluencyGames - completedFluencyGames;
+
+    // 4. CALCULATE COMPLETED LESSONS (THE CORE LOGIC)
+    let lessonsCompleted = 0;
+    const completedGamesByLesson = completedGames.reduce((acc, game) => {
+      if (!acc[game.lesson]) {
+        acc[game.lesson] = new Set();
+      }
+      acc[game.lesson].add(game.gameName);
+      return acc;
+    }, {} as Record<string, Set<string>>);
+
+    // Check each lesson to see if it's complete
+    for (const lessonName of allLessons) {
+      const requiredGames = lessonGameMap[lessonName];
+      const completedGamesInThisLesson = completedGamesByLesson[lessonName];
+
+      if (completedGamesInThisLesson) {
+        const isLessonComplete = requiredGames.every((game) =>
+          completedGamesInThisLesson.has(game)
+        );
+        if (isLessonComplete) {
+          lessonsCompleted++;
+        }
+      }
+    }
+    const lessonsRemaining = totalLessons - lessonsCompleted;
+
+    // 5. GET THE DETAILED GAME PROGRESS FOR THE RESPONSE
+    const gameProgress = await gameProgressService.getGroupedProgressByChild(
+      id
+    );
+
+    // 6. ASSEMBLE THE FINAL RESPONSE OBJECT
+    return {
+      ...child,
+      stats: {
+        totalLessons,
+        lessonsCompleted,
+        lessonsRemaining,
+        totalGames,
+        gamesCompleted,
+        gamesRemaining,
+        totalFluencyGames,
+        completedFluencyGames,
+        remainingFluencyGames,
+      },
+      gameProgress,
+    };
+  },
+
+  updateAvatar: async (childId: number, avatarId: number) => {
+    const child = await childrenRepo.findOne({ where: { id: childId } });
+    if (!child) throw new Error("Child not found");
+
+    child.avatarId = avatarId;
+    return await childrenRepo.save(child);
+  },
+};
+
+export default childrenServices;
+</file>
+
+<file path="src/resources/users/usersServices.ts">
+import AppDataSource from "../../db/index";
+import Users from "../../entities/Users";
+
+const usersRepo = AppDataSource.getRepository(Users);
+
+const usersServices = {
+  create: async (data: Partial<Users>) => {
+    const user = usersRepo.create(data);
+    return await usersRepo.save(user);
+  },
+
+  getByEmail: async (email: string) => {
+    return await usersRepo.findOne({ where: { email } });
+  },
+
+  getAll: async () => {
+    const all = await usersRepo.find({ where: { isActive: true } });
+    return all;
+  },
+
+  getSingleWithChildren: async (userId: number) => {
+    const userRepo = AppDataSource.getRepository(Users);
+    const user = await userRepo.findOne({
+      where: { id: userId },
+      relations: ["children", "children.avatar"],
+    });
+
+    if (!user) return null;
+  const baseUrl = process.env.APP_URL || '';
+  if (user.children) {
+    user.children.forEach(child => {
+      if (child.avatar && child.avatar.imageUrl) {
+        const imageUrl = child.avatar.imageUrl.startsWith('/') 
+            ? child.avatar.imageUrl.substring(1) 
+            : child.avatar.imageUrl;
+        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+      }
+    });
+  }
+
+  const { password, ...sanitizedUser } = user;
+  return sanitizedUser;
+},
+    // Destructure to remove unwanted fields
+  //   const { password, createdDate, updatedDate, ...sanitizedUser } = user;
+  //   return sanitizedUser;
+  // },
+  findOrCreateByGoogle: async (
+    googleId: string,
+    email: string,
+    name: string
+  ) => {
+    // 1. Find user by googleId
+    let user = await usersRepo.findOne({ where: { googleId } });
+    if (user) {
+      return user;
+    }
+
+    // 2. If not found, find by email to link accounts
+    user = await usersRepo.findOne({ where: { email } });
+    if (user) {
+      user.googleId = googleId;
+      await usersRepo.save(user);
+      return user;
+    }
+
+    // 3. If no user exists, create a new one
+    const newUser = usersRepo.create({
+      googleId,
+      email,
+      name,
+      role: "user", // Default role for new Google users
+    });
+
+    return await usersRepo.save(newUser);
+  },
+};
+
+export default usersServices;
+</file>
+
+<file path="src/resources/users/usersValidator.ts">
+import Joi from "joi";
+
+
+const usersValidator = {
+  create: Joi.object({
+    name: Joi.string().required().error(new Error("Name must be a string")),
+    // phone: Joi.string().required(),
+    email: Joi.string().email().required(),
+    password: Joi.string()
+      .min(8)
+      //   .pattern(new RegExp("^[a-zA-Z0-9]{3,30}$"))
+      .required(),
+    role: Joi.string().required().valid("admin", "user",),
+  }),
+};
+
+export default usersValidator;
+</file>
+
+<file path="src/db/index.ts">
+// src/db/index.ts
+
+import "reflect-metadata";
+require("dotenv").config();
+import { DataSource } from "typeorm";
+import path from "path"; // 👈 Import the 'path' module
+
+// Remove direct entity imports as they are no longer needed here
+// import Users from "../entities/Users";
+// import Children from "../entities/Children";
+// import GameProgress from "../entities/GameProgress";
+
+const AppDataSource = new DataSource({
+  type: "mysql",
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  
+  entities: [
+    path.join(__dirname, '/../entities/*.{js,ts}')
+  ],
+
+  synchronize: true, // Be cautious with synchronize: true in production
+});
+
+AppDataSource.initialize()
+  .then(() => {
+    console.log("Data Source has been initialized!");
+  })
+  .catch((err) => {
+    console.error("Error during Data Source initialization", err);
+  });
+
+export default AppDataSource;
+</file>
+
+<file path="src/entities/Users.ts">
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  BeforeInsert,
+  BeforeUpdate,
+} from "typeorm";
+import Children from "./Children";
+import { OneToMany } from "typeorm";
+
+@Entity()
+export default class Users {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  // @Column({ unique: true, nullable: false })
+  // phone: string;
+
+  @Column({ unique: true, nullable: false })
+  email: string;
+
+  @Column({ nullable: true })
+  password: string;
+
+  // Added googleId to store the unique identifier from Google.
+  @Column({ unique: true, nullable: true })
+  googleId?: string;
+
+  @Column({ nullable: false })
+  role: string;
+
+  @Column({ type: "boolean", default: true })
+  isActive: boolean;
+
+  @Column({ default: () => "CURRENT_TIMESTAMP" })
+  createdDate: Date;
+
+  @Column({ default: () => "CURRENT_TIMESTAMP" })
+  updatedDate: Date;
+
+  @BeforeInsert()
+  updateCreatedDate() {
+    this.createdDate = new Date();
+  }
+
+  @BeforeUpdate()
+  updateUpdatedDate() {
+    this.updatedDate = new Date();
+  }
+
+  // Inside class Users:
+  @OneToMany(() => Children, (child: Children) => child.user)
+  children: Children[];
+}
+</file>
+
+<file path="src/resources/gameProgress/gameProgressServices.ts">
+import AppDataSource from "../../db";
+import GameProgress from "../../entities/GameProgress";
+import Children from "../../entities/Children";
+import { fluencyGames } from "./gameProgressValidator";
+import { lessonGameMap, allowedLessons } from "../../utils/lessonGameMap";
+
+const gameProgressRepo = AppDataSource.getRepository(GameProgress);
+const childrenRepo = AppDataSource.getRepository(Children);
+
+type ScoreMapKey =
+  | "Poor"
+  | "Average"
+  | "Good"
+  | "Excellent"
+  | "Slow"
+  | "Normal"
+  | "Fast"
+  | "Fair"
+  | "Varied"
+  | "Expressive";
+
+const updateChildStreak = (child: Children): Children => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize to the start of the day
+
+  const lastActivity = child.lastActivityDate
+    ? new Date(child.lastActivityDate)
+    : null;
+  if (lastActivity) {
+    lastActivity.setHours(0, 0, 0, 0); // Normalize the last activity date
+  }
+
+  // Case 1: First activity ever
+  if (!lastActivity) {
+    child.currentStreak = 1;
+  } else {
+    const diffTime = today.getTime() - lastActivity.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      // Case 2: Consecutive day activity
+      child.currentStreak += 1;
+    } else if (diffDays > 1) {
+      // Case 3: Streak is broken
+      child.currentStreak = 1;
+    }
+    // Case 4 (else): Activity on the same day (diffDays === 0). Do nothing to the streak.
+  }
+
+  // Always update the last activity date to today if there was activity
+  child.lastActivityDate = today;
+
+  // Update longest streak if current streak is greater
+  if (child.currentStreak > child.longestStreak) {
+    child.longestStreak = child.currentStreak;
+  }
+
+  return child;
+};
+
+const gameProgressService = {
+  createOrUpdate: async (data: any) => {
+    const { childId, lesson, gameName } = data;
+
+    // 🔒 Validate lesson + gameName pairing
+    if (!allowedLessons.includes(lesson)) {
+      throw new Error(`Invalid lesson: ${lesson}`);
+    }
+    if (!lessonGameMap[lesson].includes(gameName)) {
+      throw new Error(
+        `For lesson "${lesson}", gameName must be one of: ${lessonGameMap[
+          lesson
+        ].join(", ")}`
+      );
+    }
+
+    // Check child exists
+    const child = await childrenRepo.findOne({ where: { id: childId } });
+    if (!child) throw new Error("Child not found");
+
+    let xpEarned = 0;
+    let score = 0;
+
+    // Check if progress already exists
+    let progress = await gameProgressRepo.findOne({
+      where: { child: { id: childId }, lesson, gameName },
+    });
+
+    const isFirstTimeCompletion = !progress;
+
+    // Case 1: Fluency-based games
+    if (fluencyGames.includes(gameName)) {
+      const { pronunciation, speed, intonation, completed } = data;
+
+      const scoreMap: Record<ScoreMapKey, number> = {
+        Poor: 1,
+        Average: 2,
+        Good: 3,
+        Excellent: 4,
+        Slow: 1,
+        Normal: 2,
+        Fast: 3,
+        Fair: 1,
+        Varied: 2,
+        Expressive: 3,
+      };
+
+      const totalPoints =
+        scoreMap[pronunciation as ScoreMapKey] +
+        scoreMap[speed as ScoreMapKey] +
+        scoreMap[intonation as ScoreMapKey];
+
+      score = Math.round((totalPoints / 12) * 100);
+
+      if (score >= 90) xpEarned = 20;
+      else if (score >= 75) xpEarned = 15;
+      else if (score >= 50) xpEarned = 10;
+      else xpEarned = 5;
+
+      if (progress) {
+        progress.isCompleted = completed ?? progress.isCompleted;
+        progress.score = score;
+        progress.xpEarned = xpEarned;
+        progress.pronunciation = pronunciation;
+        progress.speed = speed;
+        progress.intonation = intonation;
+        progress.attempts += 1;
+      } else {
+        progress = gameProgressRepo.create({
+          child,
+          lesson,
+          gameName,
+          isCompleted: completed,
+          score,
+          xpEarned,
+          pronunciation,
+          speed,
+          intonation,
+          attempts: 1,
+        });
+      }
+    }
+
+    // Case 2: Paragraph-based games
+    else if (
+      gameName === "Pollution Police" ||
+      gameName === "Masdar City Summary"
+    ) {
+      const { paragraph } = data;
+      xpEarned = 20;
+      score = 100;
+
+      if (progress) {
+        progress.isCompleted = true;
+        progress.score = score;
+        progress.xpEarned = xpEarned;
+        progress.paragraph = paragraph;
+        progress.attempts += 1;
+      } else {
+        progress = gameProgressRepo.create({
+          child,
+          lesson,
+          gameName,
+          isCompleted: true,
+          score,
+          xpEarned,
+          paragraph,
+          attempts: 1,
+        });
+      }
+    }
+
+    // Case 3: Standard quiz-type games
+    else {
+      const { completed, correctAnswers, totalQuestions } = data;
+      score = Math.round((correctAnswers / totalQuestions) * 100);
+
+      if (score >= 90) xpEarned = 20;
+      else if (score >= 75) xpEarned = 15;
+      else if (score >= 50) xpEarned = 10;
+      else xpEarned = 5;
+
+      if (progress) {
+        progress.isCompleted = completed ?? progress.isCompleted;
+        progress.score = score;
+        progress.xpEarned = xpEarned;
+        progress.attempts += 1;
+      } else {
+        progress = gameProgressRepo.create({
+          child,
+          lesson,
+          gameName,
+          isCompleted: completed,
+          score,
+          xpEarned,
+          attempts: 1,
+        });
+      }
+    }
+
+    // Update child stats
+    child.totalXP += xpEarned;
+    if (isFirstTimeCompletion) child.rewards += 1;
+
+    const completedGamesInLesson = await gameProgressRepo.count({
+      where: { child: { id: childId }, lesson, isCompleted: true },
+    });
+
+    child.lessonsCompleted = completedGamesInLesson;
+    if (!child.differentLessons.includes(lesson)) {
+      child.differentLessons.push(lesson);
+    }
+    updateChildStreak(child);
+
+    await childrenRepo.save(child);
+    return await gameProgressRepo.save(progress);
+  },
+
+  getByChild: async (childId: number) => {
+    return await gameProgressRepo.find({
+      where: { child: { id: childId } },
+      order: { updatedDate: "DESC" },
+    });
+  },
+
+  getGroupedProgressByChild: async (childId: number) => {
+    const allProgress = await gameProgressRepo.find({
+      where: { child: { id: childId } },
+      select: [
+        "lesson",
+        "gameName",
+        "isCompleted",
+        "score",
+        "attempts",
+        "pronunciation",
+        "speed",
+        "intonation",
+      ],
+      order: { updatedDate: "DESC" },
+    });
+
+    const grouped: Record<string, any[]> = {};
+    for (const item of allProgress) {
+      if (!grouped[item.lesson]) grouped[item.lesson] = [];
+      grouped[item.lesson].push(item);
+    }
+
+    return Object.entries(grouped).map(([lesson, games]) => ({
+      lesson,
+      games,
+    }));
+  },
+};
+
+export default gameProgressService;
+</file>
+
+<file path="package.json">
+{
+  "name": "noorlingo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon ./src/server.ts",
+    "build": "npx tsc",
+    "start": "node ./build/server.js",
+    "pm2": "set PROJECT_ENV=prod&&tsc && pm2 start build/server.js --name Noorlingo_App",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/colors": "^1.2.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "bcryptjs": "^2.4.3",
+    "class-validator": "^0.14.1",
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "google-auth-library": "^10.3.0",
+    "joi": "^17.12.1",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "mysql": "^2.18.1",
+    "nodemon": "^3.1.10",
+    "password-validator": "^5.3.0",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1",
+    "socket.io": "^4.7.4",
+    "typeorm": "^0.3.19",
+    "upper-case-first": "^3.0.0"
+  }
+}
+</file>
+
+<file path="src/resources/gameProgress/gameProgressValidator.ts">
+import Joi from "joi";
+import { lessonGameMap, allowedLessons, allowedGameNames } from "../../utils/lessonGameMap";
+
+const allowedPronunciation = ["Poor", "Average", "Good", "Excellent"];
+const allowedSpeed = ["Slow", "Normal", "Fast"];
+const allowedIntonation = ["Fair", "Varied", "Expressive"];
+
+export const fluencyGames = ["Fluency Game", "Masdar City", "Read to Rescue"];
+
+const progressValidator = {
+  upsert: Joi.object({
+    childId: Joi.number().required(),
+
+    gameName: Joi.string()
+      .valid(...allowedGameNames)
+      .required()
+      .messages({
+        "any.only": `gameName must be one of: ${allowedGameNames.join(", ")}`,
+      }),
+
+    lesson: Joi.string()
+      .valid(...allowedLessons)
+      .required()
+      .messages({
+        "any.only": `lesson must be one of: ${allowedLessons.join(", ")}`,
+      }),
+
+    completed: Joi.boolean().required(),
+
+    correctAnswers: Joi.number().min(0).when("gameName", {
+      is: Joi.string().valid(...fluencyGames, "Pollution Police", "Masdar City Summary"),
+      then: Joi.forbidden(),
+      otherwise: Joi.required(),
+    }),
+
+    totalQuestions: Joi.number().min(1).when("gameName", {
+      is: Joi.string().valid(...fluencyGames, "Pollution Police", "Masdar City Summary"),
+      then: Joi.forbidden(),
+      otherwise: Joi.required(),
+    }),
+
+    pronunciation: Joi.string().valid(...allowedPronunciation).when("gameName", {
+      is: Joi.string().valid(...fluencyGames),
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+    speed: Joi.string().valid(...allowedSpeed).when("gameName", {
+      is: Joi.string().valid(...fluencyGames),
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+    intonation: Joi.string().valid(...allowedIntonation).when("gameName", {
+      is: Joi.string().valid(...fluencyGames),
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+    paragraph: Joi.string().when("gameName", {
+      is: Joi.string().valid("Pollution Police", "Masdar City Summary"),
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+  }),
+};
+
+export default progressValidator;
+</file>
+
+<file path="src/app.ts">
+import express, { Request, Response } from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import morgan from "morgan";
+import globalErrorHandler from "./middleware/errorHandler.middleware";
+
+import "./db";
+import autehnticationMiddleware from "./middleware/authenticationMiddleware";
+import usersRouter from "./resources/users/usersRouter";
+import childrenRouter from "./resources/children/childrenRouter";
+import gameProgressRouter from "./resources/gameProgress/gameProgressRouter";
+import authenticationRouter from "./resources/authentication/authenticationRouter";
+import avatarRouter from "./resources/avatar/avatarRouter";
+import path from "path";
+
+dotenv.config();
+const app = express();
+app.use(morgan("dev"));
+app.use(cors());
+app.options("*", cors());
+app.use(express.json());
+const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
+app.use("/public", express.static(PUBLIC_DIR));
+
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+  console.error = () => {};
+  console.warn = () => {};
+}
+app.use("/api/v1/auth", authenticationRouter);
+
+app.use(autehnticationMiddleware);
+
+
+app.use("/api/v1/users", usersRouter);
+app.use("/api/v1/children",childrenRouter)
+app.use("/api/v1/progress", gameProgressRouter);
+app.use("/api/v1/avatars", avatarRouter);
+
+// app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+app.use(globalErrorHandler);
+
+export default app;
+</file>
+
+</files>

@@ -22,15 +22,29 @@ const usersServices = {
     const userRepo = AppDataSource.getRepository(Users);
     const user = await userRepo.findOne({
       where: { id: userId },
-      relations: ["children"],
+      relations: ["children", "children.avatar"],
     });
 
     if (!user) return null;
+  const baseUrl = process.env.APP_URL || '';
+  if (user.children) {
+    user.children.forEach(child => {
+      if (child.avatar && child.avatar.imageUrl) {
+        const imageUrl = child.avatar.imageUrl.startsWith('/') 
+            ? child.avatar.imageUrl.substring(1) 
+            : child.avatar.imageUrl;
+        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+      }
+    });
+  }
 
+  const { password, ...sanitizedUser } = user;
+  return sanitizedUser;
+},
     // Destructure to remove unwanted fields
-    const { password, createdDate, updatedDate, ...sanitizedUser } = user;
-    return sanitizedUser;
-  },
+  //   const { password, createdDate, updatedDate, ...sanitizedUser } = user;
+  //   return sanitizedUser;
+  // },
   findOrCreateByGoogle: async (
     googleId: string,
     email: string,

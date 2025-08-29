@@ -29,6 +29,15 @@ const childrenController = {
         }
         return yield (0, sendResponse_1.default)(res, responseCodes_1.default.BAD, "Failed to add child", null, null);
     })),
+    edit: (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const { error } = childrenValidator_1.default.edit.validate(req.body);
+        if (error) {
+            return yield (0, sendResponse_1.default)(res, responseCodes_1.default.BAD, error.details[0].message.replace(/"/g, ""), null, null);
+        }
+        const childId = parseInt(req.params.id);
+        const updatedChild = yield childrenServices_1.default.edit(childId, req.body);
+        return yield (0, sendResponse_1.default)(res, responseCodes_1.default.OK, "Child details updated successfully", updatedChild, null);
+    })),
     getByUser: (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const { userId } = req.params;
         const children = yield childrenServices_1.default.getByUserId(parseInt(userId));

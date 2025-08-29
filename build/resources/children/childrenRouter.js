@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const childrenController_1 = __importDefault(require("./childrenController"));
 const childrenRouter = express_1.default.Router();
 childrenRouter.route("/add").post(childrenController_1.default.create);
+childrenRouter.route("/edit/:id").put(childrenController_1.default.edit);
 childrenRouter.route("/getByUser/:userId").get(childrenController_1.default.getByUser);
 childrenRouter.route("/get/:id").get(childrenController_1.default.getById);
 childrenRouter.route("/:id/avatar").put(childrenController_1.default.updateAvatar);

@@ -20,6 +20,8 @@ app.use(cors());
 app.options("*", cors());
 app.use(express.json());
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
+app.use("/public", express.static(PUBLIC_DIR));
+
 if (process.env.NODE_ENV === "production") {
   console.log = () => {};
   console.error = () => {};
@@ -36,7 +38,6 @@ app.use("/api/v1/progress", gameProgressRouter);
 app.use("/api/v1/avatars", avatarRouter);
 
 // app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
-app.use("/public", express.static(PUBLIC_DIR));
 app.use(globalErrorHandler);
 
 export default app;

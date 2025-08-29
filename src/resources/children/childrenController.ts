@@ -38,6 +38,30 @@ const childrenController = {
     );
   }),
 
+    edit: catchAsync(async (req: Request, res: Response) => {
+    const { error } = childrenValidator.edit.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
+
+    const childId = parseInt(req.params.id);
+    const updatedChild = await childrenService.edit(childId, req.body);
+
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Child details updated successfully",
+      updatedChild,
+      null
+    );
+  }),
+
   getByUser: catchAsync(async (req: Request, res: Response) => {
     const { userId } = req.params;
     const children = await childrenService.getByUserId(parseInt(userId));
