@@ -22,11 +22,11 @@ app.use(express.json());
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 app.use("/public", express.static(PUBLIC_DIR));
 
-if (process.env.NODE_ENV === "production") {
-  console.log = () => {};
-  console.error = () => {};
-  console.warn = () => {};
-}
+// if (process.env.NODE_ENV === "production") {
+//   console.log = () => {};
+//   console.error = () => {};
+//   console.warn = () => {};
+// }
 app.use("/api/v1/auth", authenticationRouter);
 
 app.use(autehnticationMiddleware);

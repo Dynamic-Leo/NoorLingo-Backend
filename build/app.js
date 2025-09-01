@@ -24,11 +24,11 @@ app.options("*", (0, cors_1.default)());
 app.use(express_1.default.json());
 const PUBLIC_DIR = path_1.default.resolve(__dirname, "..", "public");
 app.use("/public", express_1.default.static(PUBLIC_DIR));
-if (process.env.NODE_ENV === "production") {
-    console.log = () => { };
-    console.error = () => { };
-    console.warn = () => { };
-}
+// if (process.env.NODE_ENV === "production") {
+//   console.log = () => {};
+//   console.error = () => {};
+//   console.warn = () => {};
+// }
 app.use("/api/v1/auth", authenticationRouter_1.default);
 app.use(authenticationMiddleware_1.default);
 app.use("/api/v1/users", usersRouter_1.default);
