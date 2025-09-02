@@ -487,22 +487,6 @@ const avatarService = {
 export default avatarService;
 </file>
 
-<file path="src/resources/children/childrenValidator.ts">
-import Joi from "joi";
-
-const childrenValidator = {
-  create: Joi.object({
-    name: Joi.string().required(),
-    ageGroup: Joi.string().valid("2-3", "3-5", "5-10").required(),
-    fluencyLevel: Joi.string().valid("Beginner", "Intermediate", "Advanced").required(),
-    gender: Joi.string().valid("Boy", "Girl").required(),
-    user: Joi.number().required(), // userId foreign key
-  }),
-};
-
-export default childrenValidator;
-</file>
-
 <file path="src/resources/gameProgress/gameProgressController.ts">
 import { Request, Response } from "express";
 import gameProgressService from "./gameProgressServices";
@@ -1078,102 +1062,28 @@ const authenticationValidator = {
 export default authenticationValidator;
 </file>
 
-<file path="src/resources/children/childrenController.ts">
-import { Request, Response } from "express";
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse";
-import responseCodes from "../../utils/responseCodes";
-import childrenService from "./childrenServices";
-import childrenValidator from "./childrenValidator";
+<file path="src/resources/children/childrenValidator.ts">
+import Joi from "joi";
 
-const childrenController = {
-  create: catchAsync(async (req: Request, res: Response) => {
-    const { error } = childrenValidator.create.validate(req.body);
-    if (error) {
-      return await sendResponse(
-        res,
-        responseCodes.BAD,
-        error.details[0].message.replace(/"/g, ""),
-        null,
-        null
-      );
-    }
-
-    const child = await childrenService.create(req.body);
-    if (child) {
-      return await sendResponse(
-        res,
-        responseCodes.CREATED,
-        "Child added successfully",
-        child,
-        null
-      );
-    }
-
-    return await sendResponse(
-      res,
-      responseCodes.BAD,
-      "Failed to add child",
-      null,
-      null
-    );
+const childrenValidator = {
+  create: Joi.object({
+    name: Joi.string().required(),
+    ageGroup: Joi.string().valid("2-3", "3-5", "5-10").required(),
+    fluencyLevel: Joi.string().valid("Beginner", "Intermediate", "Advanced").required(),
+    gender: Joi.string().valid("Boy", "Girl").required(),
+    user: Joi.number().required(), // userId foreign key
+    avatarId: Joi.number().required(), 
   }),
 
-  getByUser: catchAsync(async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const children = await childrenService.getByUserId(parseInt(userId));
-    return await sendResponse(
-      res,
-      responseCodes.OK,
-      "Children fetched",
-      children,
-      null
-    );
-  }),
-
-  getById: catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  const child = await childrenService.getById(parseInt(id));
-  if (!child) {
-    return sendResponse(res, responseCodes.NOT_FOUND, "Child not found", null, null);
-  }
-
-  return sendResponse(res, responseCodes.OK, "Child details fetched", child, null);
-}),
-
-  updateAvatar: catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { avatarId } = req.body;
-
-    if (!avatarId) {
-      return sendResponse(res, responseCodes.BAD, "avatarId is required", null, null);
-    }
-
-    const child = await childrenService.updateAvatar(parseInt(id), avatarId);
-    return sendResponse(res, responseCodes.OK, "Avatar updated successfully", child, null);
-  }),
-
-
+    edit: Joi.object({
+    name: Joi.string().optional(),
+    ageGroup: Joi.string().valid("2-3", "3-5", "5-10").optional(),
+    fluencyLevel: Joi.string().valid("Beginner", "Intermediate", "Advanced").optional(),
+    avatarId: Joi.number().optional(),
+  }).min(1), // Require at least one key to be present
 };
 
-export default childrenController;
-</file>
-
-<file path="src/resources/children/childrenRouter.ts">
-import express from "express";
-import childrenController from "./childrenController";
-
-const childrenRouter = express.Router();
-
-childrenRouter.route("/add").post(childrenController.create);
-childrenRouter.route("/getByUser/:userId").get(childrenController.getByUser);
-childrenRouter.route("/get/:id").get(childrenController.getById);
-
-childrenRouter.route("/:id/avatar").put(childrenController.updateAvatar);
-
-
-export default childrenRouter;
+export default childrenValidator;
 </file>
 
 <file path="src/resources/users/usersController.ts">
@@ -1640,230 +1550,127 @@ authenticationRouter.post("/google", authenticationController.googleLogin);
 export default authenticationRouter;
 </file>
 
-<file path="src/resources/children/childrenServices.ts">
-import AppDataSource from "../../db";
-import Children from "../../entities/Children";
-import GameProgress from "../../entities/GameProgress";
-import { lessonGameMap } from "../../utils/lessonGameMap";
-import gameProgressService from "../gameProgress/gameProgressServices";
-import { fluencyGames } from "../gameProgress/gameProgressValidator";
+<file path="src/resources/children/childrenController.ts">
+import { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import responseCodes from "../../utils/responseCodes";
+import childrenService from "./childrenServices";
+import childrenValidator from "./childrenValidator";
 
-const childrenRepo = AppDataSource.getRepository(Children);
-const gameProgressRepo = AppDataSource.getRepository(GameProgress);
-
-const childrenServices = {
-  create: async (data: Partial<Children>) => {
-    const child = childrenRepo.create(data);
-    return await childrenRepo.save(child);
-  },
-
-  getByUserId: async (userId: number) => {
-    return await childrenRepo.find({
-      where: { user: { id: userId } },
-      relations: ["user"],
-    });
-  },
-
-  getById: async (id: number) => {
-    const child = await childrenRepo.findOne({
-      where: { id },
-      relations: ["user", "avatar"],
-      select: {
-        id: true,
-        name: true,
-        ageGroup: true,
-        fluencyLevel: true,
-        gender: true,
-        rewards: true,
-        totalXP: true,
-        badges: true,
-        currentStreak: true,
-        longestStreak: true,
-        lastActivityDate: true,
-        user: {
-          name: true,
-        },
-        avatar: {
-          id: true,
-          name: true,
-          imageUrl: true,
-        },
-      },
-    });
-
-    if (!child) return null;
-
-        // This is crucial for it to work on CPanel and other production environments.
-    if (child.avatar && child.avatar.imageUrl) {
-        const baseUrl = process.env.APP_URL || '';
-        const imageUrl = child.avatar.imageUrl.startsWith('/') 
-            ? child.avatar.imageUrl.substring(1) 
-            : child.avatar.imageUrl;
-        
-        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+const childrenController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const { error } = childrenValidator.create.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
     }
-    // 1. GET ALL COMPLETED GAMES FOR THIS CHILD
-    const completedGames = await gameProgressRepo.find({
-      where: { child: { id: id }, isCompleted: true },
-      select: ["lesson", "gameName"],
-    });
 
-    // 2. CALCULATE TOTALS FROM THE SOURCE OF TRUTH (lessonGameMap)
-    const allLessons = Object.keys(lessonGameMap);
-    const totalLessons = allLessons.length;
-    const totalGames = Object.values(lessonGameMap).flat().length;
-    const totalFluencyGames = fluencyGames.length;
-
-    // 3. CALCULATE CHILD-SPECIFIC STATS
-    const gamesCompleted = completedGames.length;
-    const gamesRemaining = totalGames - gamesCompleted;
-
-    const completedFluencyGames = completedGames.filter((game) =>
-      fluencyGames.includes(game.gameName)
-    ).length;
-    const remainingFluencyGames = totalFluencyGames - completedFluencyGames;
-
-    // 4. CALCULATE COMPLETED LESSONS (THE CORE LOGIC)
-    let lessonsCompleted = 0;
-    const completedGamesByLesson = completedGames.reduce((acc, game) => {
-      if (!acc[game.lesson]) {
-        acc[game.lesson] = new Set();
-      }
-      acc[game.lesson].add(game.gameName);
-      return acc;
-    }, {} as Record<string, Set<string>>);
-
-    // Check each lesson to see if it's complete
-    for (const lessonName of allLessons) {
-      const requiredGames = lessonGameMap[lessonName];
-      const completedGamesInThisLesson = completedGamesByLesson[lessonName];
-
-      if (completedGamesInThisLesson) {
-        const isLessonComplete = requiredGames.every((game) =>
-          completedGamesInThisLesson.has(game)
-        );
-        if (isLessonComplete) {
-          lessonsCompleted++;
-        }
-      }
+    const child = await childrenService.create(req.body);
+    if (child) {
+      return await sendResponse(
+        res,
+        responseCodes.CREATED,
+        "Child added successfully",
+        child,
+        null
+      );
     }
-    const lessonsRemaining = totalLessons - lessonsCompleted;
 
-    // 5. GET THE DETAILED GAME PROGRESS FOR THE RESPONSE
-    const gameProgress = await gameProgressService.getGroupedProgressByChild(
-      id
+    return await sendResponse(
+      res,
+      responseCodes.BAD,
+      "Failed to add child",
+      null,
+      null
     );
+  }),
 
-    // 6. ASSEMBLE THE FINAL RESPONSE OBJECT
-    return {
-      ...child,
-      stats: {
-        totalLessons,
-        lessonsCompleted,
-        lessonsRemaining,
-        totalGames,
-        gamesCompleted,
-        gamesRemaining,
-        totalFluencyGames,
-        completedFluencyGames,
-        remainingFluencyGames,
-      },
-      gameProgress,
-    };
-  },
+    edit: catchAsync(async (req: Request, res: Response) => {
+    const { error } = childrenValidator.edit.validate(req.body);
+    if (error) {
+      return await sendResponse(
+        res,
+        responseCodes.BAD,
+        error.details[0].message.replace(/"/g, ""),
+        null,
+        null
+      );
+    }
 
-  updateAvatar: async (childId: number, avatarId: number) => {
-    const child = await childrenRepo.findOne({ where: { id: childId } });
-    if (!child) throw new Error("Child not found");
+    const childId = parseInt(req.params.id);
+    const updatedChild = await childrenService.edit(childId, req.body);
 
-    child.avatarId = avatarId;
-    return await childrenRepo.save(child);
-  },
-};
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Child details updated successfully",
+      updatedChild,
+      null
+    );
+  }),
 
-export default childrenServices;
-</file>
+  getByUser: catchAsync(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const children = await childrenService.getByUserId(parseInt(userId));
+    return await sendResponse(
+      res,
+      responseCodes.OK,
+      "Children fetched",
+      children,
+      null
+    );
+  }),
 
-<file path="src/resources/users/usersServices.ts">
-import AppDataSource from "../../db/index";
-import Users from "../../entities/Users";
+  getById: catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
 
-const usersRepo = AppDataSource.getRepository(Users);
-
-const usersServices = {
-  create: async (data: Partial<Users>) => {
-    const user = usersRepo.create(data);
-    return await usersRepo.save(user);
-  },
-
-  getByEmail: async (email: string) => {
-    return await usersRepo.findOne({ where: { email } });
-  },
-
-  getAll: async () => {
-    const all = await usersRepo.find({ where: { isActive: true } });
-    return all;
-  },
-
-  getSingleWithChildren: async (userId: number) => {
-    const userRepo = AppDataSource.getRepository(Users);
-    const user = await userRepo.findOne({
-      where: { id: userId },
-      relations: ["children", "children.avatar"],
-    });
-
-    if (!user) return null;
-  const baseUrl = process.env.APP_URL || '';
-  if (user.children) {
-    user.children.forEach(child => {
-      if (child.avatar && child.avatar.imageUrl) {
-        const imageUrl = child.avatar.imageUrl.startsWith('/') 
-            ? child.avatar.imageUrl.substring(1) 
-            : child.avatar.imageUrl;
-        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
-      }
-    });
+  const child = await childrenService.getById(parseInt(id));
+  if (!child) {
+    return sendResponse(res, responseCodes.NOT_FOUND, "Child not found", null, null);
   }
 
-  const { password, ...sanitizedUser } = user;
-  return sanitizedUser;
-},
-    // Destructure to remove unwanted fields
-  //   const { password, createdDate, updatedDate, ...sanitizedUser } = user;
-  //   return sanitizedUser;
-  // },
-  findOrCreateByGoogle: async (
-    googleId: string,
-    email: string,
-    name: string
-  ) => {
-    // 1. Find user by googleId
-    let user = await usersRepo.findOne({ where: { googleId } });
-    if (user) {
-      return user;
+  return sendResponse(res, responseCodes.OK, "Child details fetched", child, null);
+}),
+
+  updateAvatar: catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { avatarId } = req.body;
+
+    if (!avatarId) {
+      return sendResponse(res, responseCodes.BAD, "avatarId is required", null, null);
     }
 
-    // 2. If not found, find by email to link accounts
-    user = await usersRepo.findOne({ where: { email } });
-    if (user) {
-      user.googleId = googleId;
-      await usersRepo.save(user);
-      return user;
-    }
+    const child = await childrenService.updateAvatar(parseInt(id), avatarId);
+    return sendResponse(res, responseCodes.OK, "Avatar updated successfully", child, null);
+  }),
 
-    // 3. If no user exists, create a new one
-    const newUser = usersRepo.create({
-      googleId,
-      email,
-      name,
-      role: "user", // Default role for new Google users
-    });
 
-    return await usersRepo.save(newUser);
-  },
 };
 
-export default usersServices;
+export default childrenController;
+</file>
+
+<file path="src/resources/children/childrenRouter.ts">
+import express from "express";
+import childrenController from "./childrenController";
+
+const childrenRouter = express.Router();
+
+childrenRouter.route("/add").post(childrenController.create);
+childrenRouter.route("/edit/:id").put(childrenController.edit);
+childrenRouter.route("/getByUser/:userId").get(childrenController.getByUser);
+childrenRouter.route("/get/:id").get(childrenController.getById);
+
+childrenRouter.route("/:id/avatar").put(childrenController.updateAvatar);
+
+
+export default childrenRouter;
 </file>
 
 <file path="src/resources/users/usersValidator.ts">
@@ -1983,6 +1790,247 @@ export default class Users {
   @OneToMany(() => Children, (child: Children) => child.user)
   children: Children[];
 }
+</file>
+
+<file path="src/resources/children/childrenServices.ts">
+import AppDataSource from "../../db";
+import Children from "../../entities/Children";
+import GameProgress from "../../entities/GameProgress";
+import { lessonGameMap } from "../../utils/lessonGameMap";
+import gameProgressService from "../gameProgress/gameProgressServices";
+import { fluencyGames } from "../gameProgress/gameProgressValidator";
+
+const childrenRepo = AppDataSource.getRepository(Children);
+const gameProgressRepo = AppDataSource.getRepository(GameProgress);
+
+const childrenServices = {
+  create: async (data: Partial<Children>) => {
+    const child = childrenRepo.create(data);
+    return await childrenRepo.save(child);
+  },
+
+  getByUserId: async (userId: number) => {
+    return await childrenRepo.find({
+      where: { user: { id: userId } },
+      relations: ["user"],
+    });
+  },
+
+  getById: async (id: number) => {
+    const child = await childrenRepo.findOne({
+      where: { id },
+      relations: ["user", "avatar"],
+      select: {
+        id: true,
+        name: true,
+        ageGroup: true,
+        fluencyLevel: true,
+        gender: true,
+        rewards: true,
+        totalXP: true,
+        badges: true,
+        currentStreak: true,
+        longestStreak: true,
+        lastActivityDate: true,
+        user: {
+          name: true,
+        },
+        avatar: {
+          id: true,
+          name: true,
+          imageUrl: true,
+        },
+      },
+    });
+
+    if (!child) return null;
+
+    // This is crucial for it to work on CPanel and other production environments.
+    if (child.avatar && child.avatar.imageUrl) {
+      const baseUrl = process.env.APP_URL || "";
+      const imageUrl = child.avatar.imageUrl.startsWith("/")
+        ? child.avatar.imageUrl.substring(1)
+        : child.avatar.imageUrl;
+
+      child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+    }
+    // 1. GET ALL COMPLETED GAMES FOR THIS CHILD
+    const completedGames = await gameProgressRepo.find({
+      where: { child: { id: id }, isCompleted: true },
+      select: ["lesson", "gameName"],
+    });
+
+    // 2. CALCULATE TOTALS FROM THE SOURCE OF TRUTH (lessonGameMap)
+    const allLessons = Object.keys(lessonGameMap);
+    const totalLessons = allLessons.length;
+    const totalGames = Object.values(lessonGameMap).flat().length;
+    const totalFluencyGames = fluencyGames.length;
+
+    // 3. CALCULATE CHILD-SPECIFIC STATS
+    const gamesCompleted = completedGames.length;
+    const gamesRemaining = totalGames - gamesCompleted;
+
+    const completedFluencyGames = completedGames.filter((game) =>
+      fluencyGames.includes(game.gameName)
+    ).length;
+    const remainingFluencyGames = totalFluencyGames - completedFluencyGames;
+
+    // 4. CALCULATE COMPLETED LESSONS (THE CORE LOGIC)
+    let lessonsCompleted = 0;
+    const completedGamesByLesson = completedGames.reduce((acc, game) => {
+      if (!acc[game.lesson]) {
+        acc[game.lesson] = new Set();
+      }
+      acc[game.lesson].add(game.gameName);
+      return acc;
+    }, {} as Record<string, Set<string>>);
+
+    // Check each lesson to see if it's complete
+    for (const lessonName of allLessons) {
+      const requiredGames = lessonGameMap[lessonName];
+      const completedGamesInThisLesson = completedGamesByLesson[lessonName];
+
+      if (completedGamesInThisLesson) {
+        const isLessonComplete = requiredGames.every((game) =>
+          completedGamesInThisLesson.has(game)
+        );
+        if (isLessonComplete) {
+          lessonsCompleted++;
+        }
+      }
+    }
+    const lessonsRemaining = totalLessons - lessonsCompleted;
+
+    // 5. GET THE DETAILED GAME PROGRESS FOR THE RESPONSE
+    const gameProgress = await gameProgressService.getGroupedProgressByChild(
+      id
+    );
+
+    // 6. ASSEMBLE THE FINAL RESPONSE OBJECT
+    return {
+      ...child,
+      stats: {
+        totalLessons,
+        lessonsCompleted,
+        lessonsRemaining,
+        totalGames,
+        gamesCompleted,
+        gamesRemaining,
+        totalFluencyGames,
+        completedFluencyGames,
+        remainingFluencyGames,
+      },
+      gameProgress,
+    };
+  },
+
+  edit: async (childId: number, data: Partial<Children>) => {
+    const child = await childrenRepo.findOne({ where: { id: childId } });
+
+    if (!child) {
+      throw new Error("Child not found");
+    }
+
+    // Merge the new data into the existing child object
+    Object.assign(child, data);
+
+    // Save the updated child to the database
+    const updatedChild = await childrenRepo.save(child);
+    return updatedChild;
+  },
+
+  updateAvatar: async (childId: number, avatarId: number) => {
+    const child = await childrenRepo.findOne({ where: { id: childId } });
+    if (!child) throw new Error("Child not found");
+
+    child.avatarId = avatarId;
+    return await childrenRepo.save(child);
+  },
+};
+
+export default childrenServices;
+</file>
+
+<file path="src/resources/users/usersServices.ts">
+import AppDataSource from "../../db/index";
+import Users from "../../entities/Users";
+
+const usersRepo = AppDataSource.getRepository(Users);
+
+const usersServices = {
+  create: async (data: Partial<Users>) => {
+    const user = usersRepo.create(data);
+    return await usersRepo.save(user);
+  },
+
+  getByEmail: async (email: string) => {
+    return await usersRepo.findOne({ where: { email } });
+  },
+
+  getAll: async () => {
+    const all = await usersRepo.find({ where: { isActive: true } });
+    return all;
+  },
+
+  getSingleWithChildren: async (userId: number) => {
+    const userRepo = AppDataSource.getRepository(Users);
+    const user = await userRepo.findOne({
+      where: { id: userId },
+      relations: ["children", "children.avatar"],
+    });
+
+    if (!user) return null;
+  const baseUrl = process.env.APP_URL || '';
+  if (user.children) {
+    user.children.forEach(child => {
+      if (child.avatar && child.avatar.imageUrl) {
+        const imageUrl = child.avatar.imageUrl.startsWith('/') 
+            ? child.avatar.imageUrl.substring(1) 
+            : child.avatar.imageUrl;
+        child.avatar.imageUrl = `${baseUrl}/${imageUrl}`;
+      }
+    });
+  }
+
+  const { password, ...sanitizedUser } = user;
+  return sanitizedUser;
+},
+    // Destructure to remove unwanted fields
+  //   const { password, createdDate, updatedDate, ...sanitizedUser } = user;
+  //   return sanitizedUser;
+  // },
+  findOrCreateByGoogle: async (
+    googleId: string,
+    email: string,
+    name: string
+  ) => {
+    // 1. Find user by googleId
+    let user = await usersRepo.findOne({ where: { googleId } });
+    if (user) {
+      return user;
+    }
+
+    // 2. If not found, find by email to link accounts
+    user = await usersRepo.findOne({ where: { email } });
+    if (user) {
+      user.googleId = googleId;
+      await usersRepo.save(user);
+      return user;
+    }
+
+    // 3. If no user exists, create a new one
+    const newUser = usersRepo.create({
+      googleId,
+      email,
+      name,
+      role: "user", // Default role for new Google users
+    });
+
+    return await usersRepo.save(newUser);
+  },
+};
+
+export default usersServices;
 </file>
 
 <file path="src/resources/gameProgress/gameProgressServices.ts">
@@ -2393,11 +2441,11 @@ app.use(express.json());
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 app.use("/public", express.static(PUBLIC_DIR));
 
-if (process.env.NODE_ENV === "production") {
-  console.log = () => {};
-  console.error = () => {};
-  console.warn = () => {};
-}
+// if (process.env.NODE_ENV === "production") {
+//   console.log = () => {};
+//   console.error = () => {};
+//   console.warn = () => {};
+// }
 app.use("/api/v1/auth", authenticationRouter);
 
 app.use(autehnticationMiddleware);

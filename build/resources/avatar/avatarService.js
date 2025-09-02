@@ -12,13 +12,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// src/modules/avatar/avatarService.ts
+// src/resources/avatar/avatarService.ts
 const db_1 = __importDefault(require("../../db"));
 const Avatar_1 = __importDefault(require("../../entities/Avatar"));
 const avatarRepo = db_1.default.getRepository(Avatar_1.default);
 const avatarService = {
     getAll: () => __awaiter(void 0, void 0, void 0, function* () {
-        return yield avatarRepo.find();
+        const avatars = yield avatarRepo.find();
+        const baseUrl = process.env.APP_URL || "";
+        return avatars.map(avatar => {
+            if (avatar.imageUrl) {
+                // Ensure imageUrl is relative to the base, then prepend full path
+                // Example: if DB stores 'images/avatar.png', it becomes 'http://server/public/images/avatar.png'
+                const relativePath = avatar.imageUrl.startsWith("public/")
+                    ? avatar.imageUrl
+                    : `public/${avatar.imageUrl}`; // Assuming images are under public/images
+                return Object.assign(Object.assign({}, avatar), { imageUrl: `${baseUrl}/${relativePath}` });
+            }
+            return avatar;
+        });
     }),
     create: (data) => __awaiter(void 0, void 0, void 0, function* () {
         const avatar = avatarRepo.create(data);
