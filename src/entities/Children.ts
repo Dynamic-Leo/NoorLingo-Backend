@@ -6,9 +6,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  OneToMany
 } from "typeorm";
 import Users from "./Users";
 import Avatar from "./Avatar";
+import GameProgress from "./GameProgress";
 
 export enum AgeGroup {
   TWO_TO_THREE = "2-3",
@@ -70,7 +72,7 @@ export default class Children {
   totalXP: number;
 
   @Column("simple-array", { default: "" })
-  badges: string[]; // e.g., ["Fluency Star", "Vocabulary Champ"]
+  badges: string[]; // e.g., ["Fluency King", "Eco Hero", "Cat Star", "Word Wizard", "Amina's Choice"]
 
   @Column({ default: 0 })
   lessonsCompleted: number;
@@ -95,5 +97,7 @@ export default class Children {
 
   @UpdateDateColumn()
   updatedDate: Date;
-  gameProgress: any;
+  
+  @OneToMany(() => GameProgress, (progress) => progress.child)
+  gameProgress: GameProgress[];
 }

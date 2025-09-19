@@ -7,6 +7,38 @@ import { lessonGameMap, allowedLessons } from "../../utils/lessonGameMap";
 const gameProgressRepo = AppDataSource.getRepository(GameProgress);
 const childrenRepo = AppDataSource.getRepository(Children);
 
+// Map of badge titles to the games required to earn them, based on lessonGameMap
+const BADGE_REQUIREMENTS: { [key: string]: string[] } = {
+  "Amina's Choice": [
+    "Story Introduction",
+    "Checkpoint Quiz",
+    "Fluency Game",
+    "Matching Game",
+    "Word Swap",
+    "Sentence Creator",
+    "Drag and Drop Sorting",
+    "Story Sequencing Puzzle",
+    "Story Sequence MCQs",
+    "Verb Hunt",
+  ],
+  "Eco Hero": [
+    "Passage Intro",
+    "Clean or Hurt",
+    "Masdar City",
+    "Masdar City Summary",
+    "Tricky Words",
+    "Read to Rescue",
+    "Pollution Police",
+  ],
+  "Cat Star": [
+    "Tap the Word",
+    "Dress On Cat",
+    "Cat Trick Quest",
+  ],
+  // This is based on the fluencyGames array from gameProgressValidator
+  "Fluency King": fluencyGames,
+};
+
 type ScoreMapKey =
   | "Poor"
   | "Average"
@@ -56,6 +88,30 @@ const updateChildStreak = (child: Children): Children => {
   }
 
   return child;
+};
+
+// New function to check for and award badges
+const checkForBadges = async (child: Children) => {
+  const completedGames = await gameProgressRepo.find({
+    where: { child: { id: child.id }, isCompleted: true },
+    select: ["lesson", "gameName"],
+  });
+
+  const completedGameNames = completedGames.map(game => game.gameName);
+
+  for (const badgeTitle in BADGE_REQUIREMENTS) {
+    const requiredGames = BADGE_REQUIREMENTS[badgeTitle];
+    const hasBadgeAlready = child.badges.includes(badgeTitle);
+    
+    // Check if all required games are in the list of completed games
+    const hasCompletedAllRequiredGames = requiredGames.every(gameName => 
+      completedGameNames.includes(gameName)
+    );
+
+    if (hasCompletedAllRequiredGames && !hasBadgeAlready) {
+      child.badges.push(badgeTitle);
+    }
+  }
 };
 
 const gameProgressService = {
@@ -201,6 +257,9 @@ const gameProgressService = {
     // Update child stats
     child.totalXP += xpEarned;
     if (isFirstTimeCompletion) child.rewards += 1;
+
+    // Check for badges after the game is completed
+    await checkForBadges(child);
 
     const completedGamesInLesson = await gameProgressRepo.count({
       where: { child: { id: childId }, lesson, isCompleted: true },
