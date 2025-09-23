@@ -16,6 +16,7 @@ exports.Gender = exports.FluencyLevel = exports.AgeGroup = void 0;
 const typeorm_1 = require("typeorm");
 const Users_1 = __importDefault(require("./Users"));
 const Avatar_1 = __importDefault(require("./Avatar"));
+const GameProgress_1 = __importDefault(require("./GameProgress"));
 var AgeGroup;
 (function (AgeGroup) {
     AgeGroup["TWO_TO_THREE"] = "2-3";
@@ -121,6 +122,10 @@ __decorate([
     (0, typeorm_1.UpdateDateColumn)(),
     __metadata("design:type", Date)
 ], Children.prototype, "updatedDate", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => GameProgress_1.default, (progress) => progress.child),
+    __metadata("design:type", Array)
+], Children.prototype, "gameProgress", void 0);
 Children = __decorate([
     (0, typeorm_1.Entity)()
 ], Children);

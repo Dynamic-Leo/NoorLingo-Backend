@@ -19,6 +19,37 @@ const gameProgressValidator_1 = require("./gameProgressValidator");
 const lessonGameMap_1 = require("../../utils/lessonGameMap");
 const gameProgressRepo = db_1.default.getRepository(GameProgress_1.default);
 const childrenRepo = db_1.default.getRepository(Children_1.default);
+// Map of badge titles to the games required to earn them, based on lessonGameMap
+const BADGE_REQUIREMENTS = {
+    "Amina's Choice": [
+        "Story Introduction",
+        "Checkpoint Quiz",
+        "Fluency Game",
+        "Matching Game",
+        "Word Swap",
+        "Sentence Creator",
+        "Drag and Drop Sorting",
+        "Story Sequencing Puzzle",
+        "Story Sequence MCQs",
+        "Verb Hunt",
+    ],
+    "Eco Hero": [
+        "Passage Intro",
+        "Clean or Hurt",
+        "Masdar City",
+        "Masdar City Summary",
+        "Tricky Words",
+        "Read to Rescue",
+        "Pollution Police",
+    ],
+    "Cat Star": [
+        "Tap the Word",
+        "Dress On Cat",
+        "Cat Trick Quest",
+    ],
+    // This is based on the fluencyGames array from gameProgressValidator
+    "Fluency King": gameProgressValidator_1.fluencyGames,
+};
 const updateChildStreak = (child) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize to the start of the day
@@ -53,6 +84,23 @@ const updateChildStreak = (child) => {
     }
     return child;
 };
+// New function to check for and award badges
+const checkForBadges = (child) => __awaiter(void 0, void 0, void 0, function* () {
+    const completedGames = yield gameProgressRepo.find({
+        where: { child: { id: child.id }, isCompleted: true },
+        select: ["lesson", "gameName"],
+    });
+    const completedGameNames = completedGames.map(game => game.gameName);
+    for (const badgeTitle in BADGE_REQUIREMENTS) {
+        const requiredGames = BADGE_REQUIREMENTS[badgeTitle];
+        const hasBadgeAlready = child.badges.includes(badgeTitle);
+        // Check if all required games are in the list of completed games
+        const hasCompletedAllRequiredGames = requiredGames.every(gameName => completedGameNames.includes(gameName));
+        if (hasCompletedAllRequiredGames && !hasBadgeAlready) {
+            child.badges.push(badgeTitle);
+        }
+    }
+});
 const gameProgressService = {
     createOrUpdate: (data) => __awaiter(void 0, void 0, void 0, function* () {
         const { childId, lesson, gameName } = data;
@@ -185,6 +233,8 @@ const gameProgressService = {
         child.totalXP += xpEarned;
         if (isFirstTimeCompletion)
             child.rewards += 1;
+        // Check for badges after the game is completed
+        yield checkForBadges(child);
         const completedGamesInLesson = yield gameProgressRepo.count({
             where: { child: { id: childId }, lesson, isCompleted: true },
         });

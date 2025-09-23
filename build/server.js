@@ -10,5 +10,5 @@ const PORT = Number(process.env.PORT);
 const server = http_1.default.createServer(app_1.default);
 // socketConnection(server);
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is runninggg on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
